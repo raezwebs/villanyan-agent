@@ -17,8 +17,13 @@ OBSIDIAN_VAULT = pathlib.Path(os.path.expanduser("~/obsidian-vault"))
 REMINDERS_FILE = OBSIDIAN_VAULT / "Hermes" / "Przypomnienia.md"
 
 
-def _templates(request: Request):
-    return request.app.state.templates
+def _render_template(request: Request, template_name: str, **context):
+    """Render Jinja2 template safely (workaround for jinja2 3.1.6 + starlette bug)."""
+    env = request.app.state.templates.env
+    tmpl = env.get_template(template_name)
+    html = tmpl.render({"request": request, **context})
+    from starlette.responses import HTMLResponse
+    return HTMLResponse(html)
 
 
 def _vault_exists() -> bool:
@@ -158,7 +163,7 @@ async def partial_obsidian_status(request: Request):
     vault_path = str(OBSIDIAN_VAULT)
     reminders_count = len(_parse_reminders())
 
-    return _templates(request).TemplateResponse("partials/obsidian_status.html", {
+    return _render_template(request, "partials/obsidian_status.html", {
         "request": request,
         "vault_ok": vault_ok,
         "vault_path": vault_path,

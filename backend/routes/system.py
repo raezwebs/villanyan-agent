@@ -16,8 +16,13 @@ from backend.core.security import get_current_user
 router = APIRouter(prefix="/api/system", tags=["system"])
 
 
-def _templates(request: Request):
-    return request.app.state.templates
+def _render_template(request: Request, template_name: str, **context):
+    """Render Jinja2 template safely (workaround for jinja2 3.1.6 + starlette bug)."""
+    env = request.app.state.templates.env
+    tmpl = env.get_template(template_name)
+    html = tmpl.render({"request": request, **context})
+    from starlette.responses import HTMLResponse
+    return HTMLResponse(html)
 
 
 def _get_vcgencmd_temp() -> float | None:
@@ -112,7 +117,7 @@ async def partial_system_metrics(request: Request):
     disk = psutil.disk_usage("/")
     temp = _get_vcgencmd_temp()
 
-    return _templates(request).TemplateResponse("partials/system_metrics.html", {
+    return _render_template(request, "partials/system_metrics.html", {
         "request": request,
         "cpu_percent": cpu_percent,
         "cpu_count": cpu_count,

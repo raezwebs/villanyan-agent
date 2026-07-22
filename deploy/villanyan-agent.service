@@ -1,0 +1,19 @@
+[Unit]
+Description=Villanyan Agent Dashboard
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vv-rp
+WorkingDirectory=/home/vv-rp/projects/villanyan-agent
+ExecStart=/home/vv-rp/projects/villanyan-agent/.venv/bin/python app.py --port 7890
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

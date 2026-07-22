@@ -12,8 +12,9 @@
   {# Welcome + przypomnienia #}
   <div>
     <h1 class="text-2xl font-bold text-primary mb-1">Witaj Użytkowniku!</h1>
-    <div class="flex items-center gap-4 text-sm text-secondary" id="reminder-summary"
-         hx-get="/partials/reminder-summary" hx-trigger="load, every 60s" hx-swap="innerHTML">
+    <div class="flex items-center gap-4 text-sm text-secondary">
+      <span>📌 <span class="font-medium text-accent">0</span> aktywnych przypomnień</span>
+      <span>✅ <span class="font-medium text-success">0</span> zrealizowanych</span>
     </div>
   </div>
 
@@ -28,7 +29,8 @@
           cloudilla
         </h2>
       </div>
-      <div id="cloud-files" hx-get="/api/cloud/files" hx-trigger="load, every 60s" hx-swap="innerHTML">
+      <div id="cloud-files"
+           hx-get="/api/cloud/files" hx-trigger="every 60s" hx-swap="innerHTML">
         <div class="text-center text-secondary text-sm py-8">Ładowanie...</div>
       </div>
     </div>
@@ -41,7 +43,8 @@
           Moje Projekty
         </h2>
       </div>
-      <div id="github-projects" hx-get="/api/github/projects" hx-trigger="load, every 120s" hx-swap="innerHTML">
+      <div id="github-projects"
+           hx-get="/api/github/projects" hx-trigger="every 120s" hx-swap="innerHTML">
         <div class="text-center text-secondary text-sm py-8">Ładowanie...</div>
       </div>
     </div>

@@ -104,7 +104,7 @@ async def control_service(
 
 # ── HTMX partials ──────────────────────────────────────────────────────
 
-_partial_router = APIRouter(prefix="/partials", tags=["system-partials"])
+_partial_router = APIRouter(tags=["partials"])
 
 
 @_partial_router.get("/system-metrics")
@@ -117,20 +117,70 @@ async def partial_system_metrics(request: Request):
     disk = psutil.disk_usage("/")
     temp = _get_vcgencmd_temp()
 
-    return _render_template(request, "partials/system_metrics.html", {
-        "request": request,
-        "cpu_percent": cpu_percent,
-        "cpu_count": cpu_count,
-        "mem_percent": mem.percent,
-        "mem_used": _to_gb(mem.used),
-        "mem_total": _to_gb(mem.total),
-        "disk_percent": disk.percent,
-        "disk_used": _to_gb(disk.used),
-        "disk_total": _to_gb(disk.total),
-        "temp": temp,
-        "updated_at": datetime.now(UTC).strftime("%H:%M:%S"),
-    })
+    return _render_template(request, "partials/system_metrics.html",
+        cpu_percent=cpu_percent,
+        cpu_count=cpu_count,
+        mem_percent=mem.percent,
+        mem_used=_to_gb(mem.used),
+        mem_total=_to_gb(mem.total),
+        disk_percent=disk.percent,
+        disk_used=_to_gb(disk.used),
+        disk_total=_to_gb(disk.total),
+        temp=temp,
+        updated_at=datetime.now(UTC).strftime("%H:%M:%S"),
+    )
 
 
-# Include the partial router under the same namespace
-router.include_router(_partial_router)
+# ── Docker list partial ────────────────────────────────────────────────
+
+
+@_partial_router.get("/docker-list")
+async def partial_docker_list(request: Request):
+    """HTMX partial for Docker containers list."""
+    return _render_template(request, "partials/docker_list.html")
+
+
+# ── Port table partial ─────────────────────────────────────────────────
+
+
+@_partial_router.get("/port-table")
+async def partial_port_table(request: Request):
+    """HTMX partial for port listing."""
+    return _render_template(request, "partials/port_table.html")
+
+
+# ── Cron table partial ─────────────────────────────────────────────────
+
+
+@_partial_router.get("/cron-table")
+async def partial_cron_table(request: Request):
+    """HTMX partial for cron jobs table."""
+    return _render_template(request, "partials/cron_table.html")
+
+
+# ── Reminder list partial ──────────────────────────────────────────────
+
+
+@_partial_router.get("/reminder-list")
+async def partial_reminder_list(request: Request):
+    """HTMX partial for reminders list."""
+    return _render_template(request, "partials/reminder_list.html")
+
+
+# ── Reminder stats partial ─────────────────────────────────────────────
+
+
+@_partial_router.get("/reminder-stats")
+async def partial_reminder_stats(request: Request):
+    """HTMX partial for reminder statistics."""
+    return _render_template(request, "partials/reminder_stats.html")
+
+
+# ── Session list partial ───────────────────────────────────────────────
+
+
+@_partial_router.get("/session-list")
+async def partial_session_list(request: Request):
+    """HTMX partial for session list."""
+    return _render_template(request, "partials/session_list.html")
+

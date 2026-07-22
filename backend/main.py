@@ -97,6 +97,10 @@ def create_app() -> FastAPI:
     for r in routers:
         app.include_router(r)
 
+    # Make partial routes accessible via /partials directly
+    from backend.routes.system import _partial_router
+    app.include_router(_partial_router, prefix="/partials")
+
     # ── Health check ──────────────────────────────────────────────────
     from fastapi import APIRouter
     health = APIRouter()

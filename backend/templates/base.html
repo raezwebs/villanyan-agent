@@ -100,6 +100,16 @@
 
   {# ═══════════════════════════════════════════════════════════════════ SCRIPTS ═══ #}
   <script>
+    // HTMX — dołącz token do każdego żądania
+    document.addEventListener('DOMContentLoaded', function() {
+      const token = localStorage.getItem('villanyan_token');
+      if (token) {
+        htmx.config.defaultHeaders = {
+          'Authorization': 'Bearer ' + token
+        };
+      }
+    });
+
     // Clock
     setInterval(() => {
       const el = document.getElementById('clock');

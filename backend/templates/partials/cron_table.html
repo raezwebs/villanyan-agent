@@ -1,0 +1,42 @@
+<div id="cron-table-inner">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-secondary text-xs uppercase tracking-wider border-b border-border-custom">
+          <th class="text-left py-3 px-4">Nazwa</th>
+          <th class="text-left py-3 px-4 hidden md:table-cell">Harmonogram</th>
+          <th class="text-left py-3 px-4">Status</th>
+          <th class="text-right py-3 px-4">Akcje</th>
+        </tr>
+      </thead>
+      <tbody id="cron-table-body">
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+(async function() {
+  const tbody = document.getElementById('cron-table-body');
+  try {
+    const res = await fetch('/api/cron/jobs', {
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
+    });
+    if (!res.ok) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-8">Brak dostępu</td></tr>'; return; }
+    const data = await res.json();
+    if (!data.items || data.items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary py-8">Brak automatycznych zadań</td></tr>';
+      return;
+    }
+    for (const j of data.items) {
+      tbody.innerHTML += '<tr>' +
+        '<td class="py-3 px-4"><div class="font-bold text-sm">' + j.name + '</div></td>' +
+        '<td class="py-3 px-4 hidden md:table-cell"><code class="text-xs font-mono bg-page px-2 py-1 rounded">' + j.schedule + '</code></td>' +
+        '<td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full ' + (j.active ? 'bg-success' : 'bg-secondary') + '"></span>' + (j.active ? 'Aktywny' : 'Wyłączony') + '</span></td>' +
+        '<td class="py-3 px-4 text-right"><div class="flex gap-1 justify-end">' +
+          '<button onclick="runCron(' + j.id + ')" class="text-xs px-2 py-1 rounded bg-accent/10 text-accent hover:bg-accent/20" title="Uruchom">▶</button>' +
+          '<button onclick="deleteCron(' + j.id + ')" class="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20" title="Usuń">✕</button>' +
+        '</div></td></tr>';
+    }
+  } catch { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-8">Błąd połączenia</td></tr>'; }
+})();
+</script>

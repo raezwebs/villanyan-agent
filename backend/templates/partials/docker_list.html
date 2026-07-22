@@ -1,0 +1,47 @@
+<div class="overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-secondary text-xs uppercase tracking-wider border-b border-border-custom">
+        <th class="text-left py-3 px-4">Nazwa</th>
+        <th class="text-left py-3 px-4">Status</th>
+        <th class="text-left py-3 px-4 hidden md:table-cell">Porty</th>
+        <th class="text-right py-3 px-4">Akcje</th>
+      </tr>
+    </thead>
+    <tbody id="docker-container-list">
+    </tbody>
+  </table>
+</div>
+<script>
+(async function() {
+  const tbody = document.getElementById('docker-container-list');
+  try {
+    const res = await fetch('/api/docker/containers', {
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
+    });
+    if (!res.ok) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-8">Docker niedostępny</td></tr>'; return; }
+    const data = await res.json();
+    if (!data.containers || data.containers.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary py-8">Brak kontenerów Docker</td></tr>';
+      return;
+    }
+    for (const c of data.containers) {
+      const isRunning = c.status === 'running';
+      tbody.innerHTML += '<tr>' +
+        '<td class="py-3 px-4"><div class="font-bold">' + c.name + '</div><div class="text-xs text-secondary">' + c.image + '</div></td>' +
+        '<td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs ' + (isRunning ? 'text-success' : 'text-secondary') + '"><span class="w-2 h-2 rounded-full ' + (isRunning ? 'bg-success' : 'bg-secondary') + '"></span>' + c.status + '</span></td>' +
+        '<td class="py-3 px-4 hidden md:table-cell text-xs text-secondary">' + Object.keys(c.ports || {}).join(', ') || '-' + '</td>' +
+        '<td class="py-3 px-4 text-right"><div class="flex gap-1 justify-end">' +
+          (isRunning ? '<button onclick="ctrlContainer(\'' + c.id + '\',\'stop\')" class="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20">Stop</button>' : '<button onclick="ctrlContainer(\'' + c.id + '\',\'start\')" class="text-xs px-2 py-1 rounded bg-success/10 text-success hover:bg-success/20">Start</button>') +
+          '<button onclick="ctrlContainer(\'' + c.id + '\',\'restart\')" class="text-xs px-2 py-1 rounded bg-surface-hover text-secondary hover:text-primary">Restart</button>' +
+        '</div></td></tr>';
+    }
+  } catch { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-8">Błąd połączenia</td></tr>'; }
+})();
+async function ctrlContainer(id, action) {
+  try {
+    await fetch('/api/docker/containers/' + id + '/' + action, { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') } });
+    htmx.trigger('#docker-container-list', 'load');
+  } catch {}
+}
+</script>

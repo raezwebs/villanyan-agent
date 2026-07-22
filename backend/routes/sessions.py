@@ -41,7 +41,7 @@ def _query_sessions(page: int = 1, page_size: int = 50) -> dict:
 
         offset = (page - 1) * page_size
         cur = conn.execute(
-            "SELECT * FROM sessions ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM sessions ORDER BY started_at DESC LIMIT ? OFFSET ?",
             (page_size, offset),
         )
         rows = [_row_to_dict(r) for r in cur.fetchall()]
@@ -103,12 +103,12 @@ async def create_session(
         now = datetime.now(UTC).isoformat()
         title = body.title or f"Session {now[:19]}"
         cur = conn.execute(
-            "INSERT INTO sessions (title, created_at, updated_at) VALUES (?, ?, ?)",
-            (title, now, now),
+            "INSERT INTO sessions (title, started_at, source) VALUES (?, ?, 'villanyan')",
+            (title, now),
         )
         conn.commit()
         session_id = cur.lastrowid
-        return {"id": session_id, "title": title, "created_at": now, "updated_at": now}
+        return {"id": session_id, "title": title, "started_at": now}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Error: {exc}")
     finally:
@@ -144,11 +144,11 @@ async def send_message(
     try:
         now = datetime.now(UTC).isoformat()
         cur = conn.execute(
-            "INSERT INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO messages (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
             (session_id, body.role, body.content, now),
         )
         conn.execute(
-            "UPDATE sessions SET updated_at = ? WHERE id = ?",
+            "UPDATE sessions SET started_at = ? WHERE id = ?",
             (now, session_id),
         )
         conn.commit()
@@ -157,7 +157,7 @@ async def send_message(
             "session_id": session_id,
             "role": body.role,
             "content": body.content,
-            "created_at": now,
+            "timestamp": now,
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Error: {exc}")

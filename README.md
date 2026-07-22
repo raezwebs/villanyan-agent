@@ -107,9 +107,22 @@ villanyan-agent/
 ├── requirements.txt                # Zależności Python
 ├── .env.example                    # Wzór konfiguracji
 └── README.md
-```
+## Partials HTMX
 
-27 plików .py, 9 szablonów HTML, 3 pliki statyczne. Zero `package.json`, zero `node_modules`, zero build step.
+Osiem lekkich widoków ładowanych dynamicznie przez HTMX (`hx-get`):
+
+| URL | Plik | Opis |
+|-----|------|------|
+| `/partials/system-metrics` | `partials/system_metrics.html` | CPU, RAM, dysk, temperatura Pi |
+| `/partials/docker-list` | `partials/docker_list.html` | Lista kontenerów Docker z akcjami |
+| `/partials/port-table` | `partials/port_table.html` | Nasłuchujące porty TCP/UDP |
+| `/partials/cron-table` | `partials/cron_table.html` | Lista cron jobów z akcjami |
+| `/partials/reminder-list` | `partials/reminder_list.html` | Przypomnienia z vaultu Obsidian |
+| `/partials/reminder-stats` | `partials/reminder_stats.html` | Statystyki przypomnień |
+| `/partials/session-list` | `partials/session_list.html` | Lista sesji Hermes |
+| `/partials/obsidian-status` | `partials/obsidian_status.html` | Status vaultu Obsidian |
+
+38 plików .py, 9 szablonów HTML + 8 partials, 3 pliki statyczne. Zero `package.json`, zero `node_modules`, zero build step.
 
 ---
 
@@ -169,8 +182,25 @@ Frontend działa przez:
 | Metoda | Endpoint | Opis |
 |--------|----------|------|
 | POST | `/api/hermes/message` | Wyślij do LLM (Gemini → OpenAI → fallback) |
-| GET | `/api/hermes/agent` | Status agenta |
+| GET | `/api/hermes/agent` | Status agenta + config |
 | GET/PUT | `/api/hermes/agent-memory/{name}` | Czytaj/zapisz plik agenta |
+
+### Reminders (DB)
+| Metoda | Endpoint | Opis |
+|--------|----------|------|
+| GET/POST | `/api/reminders` | Lista/utwórz przypomnienie |
+| GET/PATCH/DELETE | `/api/reminders/{id}` | CRUD |
+
+### Koszty
+| Metoda | Endpoint | Opis |
+|--------|----------|------|
+| GET | `/api/costs` | Stawki LLM |
+
+### Memory (wersjonowanie)
+| Metoda | Endpoint | Opis |
+|--------|----------|------|
+| GET/POST | `/api/memory` | Lista/utwórz wersję |
+| GET/DELETE | `/api/memory/{id}` | Pobierz usuń |
 
 ### Obsidian
 | Metoda | Endpoint | Opis |

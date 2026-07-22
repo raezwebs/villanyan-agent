@@ -1,0 +1,24 @@
+<div id="session-list-inner">
+  <div class="space-y-1 px-2 py-2" id="session-items">
+  </div>
+</div>
+<script>
+(async function() {
+  const container = document.getElementById('session-items');
+  try {
+    const res = await fetch('/api/sessions', {
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
+    });
+    if (!res.ok) { container.innerHTML = '<div class="text-center text-secondary text-xs py-4">Brak dostępu</div>'; return; }
+    const data = await res.json();
+    if (!data.items || data.items.length === 0) {
+      container.innerHTML = '<div class="text-center text-secondary text-xs py-4">Brak konwersacji</div>';
+      return;
+    }
+    for (const s of data.items.slice(0, 20)) {
+      const title = s.title || 'Sesja #' + s.id;
+      container.innerHTML += '<div onclick="selectSession(' + s.id + ')" class="px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-surface-hover transition-colors truncate">' + title + '</div>';
+    }
+  } catch { container.innerHTML = '<div class="text-center text-secondary text-xs py-4">Błąd połączenia</div>'; }
+})();
+</script>

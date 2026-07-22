@@ -6,7 +6,7 @@
 
   <!-- Język interfejsu -->
   <div class="bg-surface border border-border-custom rounded-xl p-5">
-    <h3 class="font-bold mb-4">Język interfejsu</h3>
+    <h3 class="font-bold mb-4">🌐 Język interfejsu</h3>
     <div class="space-y-3">
       <label class="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
              :class="lang === 'pl' ? 'border border-accent bg-accent/5' : 'border border-border-custom hover:border-accent/50'">
@@ -19,28 +19,55 @@
         <div><div class="font-bold">🇬🇧 English</div><div class="text-xs text-secondary">Switch interface to English</div></div>
       </label>
     </div>
-    <div x-show="langSaved" x-transition class="text-xs text-success mt-2">✓ Język zapisany (odśwież stronę)</div>
   </div>
 
   <!-- Główny Model AI -->
   <div class="bg-surface border border-border-custom rounded-xl p-5">
-    <h3 class="font-bold mb-4">Główny Model AI</h3>
+    <h3 class="font-bold mb-4">🤖 Główny Model AI</h3>
     <select x-model="selectedModel" @change="saveModel()"
             class="w-full bg-page border border-border-custom rounded-lg p-3 text-primary focus:border-accent outline-none">
+      <option value="" disabled x-show="ollamaModels.length === 0 && ollamaOnline">Ładowanie modeli...</option>
       <template x-for="m in ollamaModels" :key="m">
         <option :value="m" x-text="m.replace(':latest','')" :selected="selectedModel === m"></option>
       </template>
-      <option value="" disabled x-show="!ollamaModels.length">Ładowanie modeli z Ollama...</option>
     </select>
-    <div class="text-xs text-secondary mt-1" x-show="!ollamaOnline && ollamaModels.length === 0">
-      ⚠ Ollama offline — lista modeli niedostępna. Skonfiguruj URL w sekcji poniżej i odśwież.
+    <div x-show="!ollamaOnline && ollamaModels.length === 0" class="text-xs text-secondary mt-2 flex items-center gap-2">
+      ⚠ <span>Ollama offline — brak modeli. Skonfiguruj URL w kluczach API i odśwież.</span>
     </div>
-    <div x-show="modelSaved" x-transition class="text-xs text-success mt-2">✓ Model zapisany w localStorage</div>
+    <div class="text-xs text-secondary mt-1">Aktualnie wybrany: <span class="font-mono font-bold text-accent" x-text="selectedModel || 'domyślny'"></span></div>
   </div>
 
-  <!-- Klucze API (zapis przez PATCH /api/settings) -->
+  <!-- Zmiana hasła -->
   <div class="bg-surface border border-border-custom rounded-xl p-5">
-    <h3 class="font-bold mb-4">Klucze API</h3>
+    <h3 class="font-bold mb-4">🔑 Zmiana hasła</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-secondary mb-1">Stare hasło</label>
+        <input type="password" x-model="oldPassword" placeholder="Obecne hasło"
+               class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm text-primary focus:border-accent outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs text-secondary mb-1">Nowe hasło</label>
+        <input type="password" x-model="newPassword" placeholder="Nowe hasło (min. 4 znaki)"
+               class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm text-primary focus:border-accent outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs text-secondary mb-1">Powtórz nowe hasło</label>
+        <input type="password" x-model="newPasswordRepeat" placeholder="Powtórz nowe hasło"
+               class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm text-primary focus:border-accent outline-none" />
+      </div>
+      <button @click="changePassword()"
+              class="bg-accent text-page px-4 py-2 rounded-lg text-sm font-bold hover:bg-accent/90 transition-colors">
+        Zmień hasło
+      </button>
+      <span x-show="passwordMsg" x-text="passwordMsg" class="text-sm ml-3"
+            :class="passwordMsg.includes('✓') ? 'text-success' : 'text-danger'"></span>
+    </div>
+  </div>
+
+  <!-- Klucze API -->
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <h3 class="font-bold mb-4">🔌 Klucze API</h3>
     <div class="space-y-4">
       <div>
         <label class="block text-xs text-secondary mb-1">Gemini API Key</label>
@@ -55,11 +82,6 @@
       <div>
         <label class="block text-xs text-secondary mb-1">Ollama URL</label>
         <input type="text" x-model="ollamaUrl" placeholder="http://192.168.1.109:11434"
-               class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm font-mono text-primary focus:border-accent outline-none" />
-      </div>
-      <div>
-        <label class="block text-xs text-secondary mb-1">Ollama Model</label>
-        <input type="text" x-model="ollamaModel" placeholder="deepseek-r1:1.5b"
                class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm font-mono text-primary focus:border-accent outline-none" />
       </div>
       <button @click="saveApiKeys()"
@@ -80,28 +102,36 @@
       <span class="text-xs text-secondary" x-text="ollamaUrl"></span>
     </div>
     <div x-show="ollamaModels.length" class="text-xs text-secondary">
-      Modele: <span x-text="ollamaModels.join(', ')"></span>
+      Modele: <span x-text="ollamaModels.join(', ')" class="font-mono"></span>
     </div>
     <button @click="checkOllama()" class="mt-2 text-xs px-3 py-1.5 rounded bg-surface-hover text-secondary hover:text-primary">Odśwież</button>
   </div>
 
-  <!-- Informacje o systemie -->
+  <!-- O systemie -->
   <div class="bg-surface border border-border-custom rounded-xl p-5">
-    <h3 class="font-bold mb-4">Informacje o systemie</h3>
+    <h3 class="font-bold mb-4">ℹ️ O systemie</h3>
     <div class="space-y-2 text-sm">
-      <div class="flex justify-between py-1 border-b border-border-custom">
-        <span class="text-secondary">Wersja aplikacji</span><span class="font-mono font-bold" x-text="appVersion"></span>
+      <div class="flex justify-between py-2 border-b border-border-custom">
+        <span class="text-secondary">Wersja aplikacji</span>
+        <span class="font-mono font-bold" x-text="appVersion"></span>
       </div>
-      <div class="flex justify-between py-1 border-b border-border-custom">
-        <span class="text-secondary">Python</span><span class="font-mono" x-text="pythonVersion"></span>
+      <div class="flex justify-between py-2 border-b border-border-custom">
+        <span class="text-secondary">Ostatni commit</span>
+        <span class="font-mono text-xs text-accent" x-text="lastCommit"></span>
       </div>
-      <div class="flex justify-between py-1 border-b border-border-custom">
-        <span class="text-secondary">Baza danych</span><span class="font-mono text-xs">SQLite (WAL)</span>
+      <div class="flex justify-between py-2 border-b border-border-custom">
+        <span class="text-secondary">Python</span>
+        <span class="font-mono" x-text="pythonVersion"></span>
       </div>
-      <div class="flex justify-between py-1 border-b border-border-custom">
-        <span class="text-secondary">Port serwera</span><span class="font-mono">7890</span>
+      <div class="flex justify-between py-2 border-b border-border-custom">
+        <span class="text-secondary">Baza danych</span>
+        <span class="font-mono text-xs">SQLite (WAL)</span>
       </div>
-      <div class="flex justify-between py-1">
+      <div class="flex justify-between py-2 border-b border-border-custom">
+        <span class="text-secondary">Uptime</span>
+        <span class="font-mono" x-text="uptime"></span>
+      </div>
+      <div class="flex justify-between py-2">
         <span class="text-secondary">Status API</span>
         <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-success"></span><span class="text-success font-bold">Online</span></span>
       </div>
@@ -110,7 +140,7 @@
 
   <!-- Akcje -->
   <div class="bg-surface border border-danger/30 rounded-xl p-5">
-    <h3 class="font-bold mb-4 text-danger">Strefa niebezpieczna</h3>
+    <h3 class="font-bold mb-4 text-danger">⚠️ Strefa niebezpieczna</h3>
     <div class="space-y-3">
       <button @click="clearCache()"
               class="w-full border border-border-custom bg-surface-hover/50 px-4 py-3 rounded-lg text-sm font-bold hover:bg-surface-hover transition-colors text-left flex items-center justify-between">
@@ -121,7 +151,6 @@
         <span>Wyloguj się</span><span class="text-xs text-danger">usuwa token i przekierowuje do loginu</span>
       </button>
     </div>
-    <div x-show="cacheCleared" x-transition class="text-xs text-success mt-3">✓ Cache wyczyszczony</div>
   </div>
 </div>
 {% endblock %}
@@ -130,18 +159,17 @@
 function settingsApp() {
   return {
     lang: localStorage.getItem('villanyan_lang') || 'pl',
-    langSaved: false,
     selectedModel: localStorage.getItem('villanyan_model') || '',
-    modelSaved: false,
     geminiKey: '', openaiKey: '', ollamaUrl: '', ollamaModel: '',
     apiSaveMsg: '',
-    appVersion: '3.0.0', pythonVersion: '3.13.5',
-    cacheCleared: false,
+    oldPassword: '', newPassword: '', newPasswordRepeat: '',
+    passwordMsg: '',
+    appVersion: '—', pythonVersion: '—', lastCommit: '—', uptime: '—',
     ollamaOnline: false, ollamaModels: [],
 
     init() {
       const token = localStorage.getItem('villanyan_token');
-      // Load settings from API
+      // Load settings
       fetch('/api/settings', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(r => r.json()).then(d => {
           this.geminiKey = d.GEMINI_API_KEY || '';
@@ -149,8 +177,17 @@ function settingsApp() {
           this.ollamaUrl = d.OLLAMA_API_URL || 'http://192.168.1.109:11434';
           this.ollamaModel = d.OLLAMA_MODEL || 'deepseek-r1:1.5b';
         }).catch(() => {});
-
-      fetch('/api/health').then(r => r.json()).then(d => { this.appVersion = d.version || this.appVersion; }).catch(() => {});
+      // Health
+      fetch('/api/health').then(r => r.json()).then(d => {
+        this.appVersion = d.version || '3.0.0';
+      }).catch(() => {});
+      // System info
+      fetch('/api/system/info', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(r => r.json()).then(d => {
+        this.lastCommit = d.last_commit || '—';
+        this.uptime = d.uptime || '—';
+      }).catch(() => {});
       this.checkOllama();
     },
 
@@ -166,14 +203,37 @@ function settingsApp() {
 
     saveLang() {
       localStorage.setItem('villanyan_lang', this.lang);
-      this.langSaved = true;
-      setTimeout(() => { this.langSaved = false; location.reload(); }, 800);
+      showToast('✓ Język zapisany — odśwież stronę', 'success');
+      setTimeout(() => { location.reload(); }, 1000);
     },
 
     saveModel() {
       localStorage.setItem('villanyan_model', this.selectedModel);
-      this.modelSaved = true;
-      setTimeout(() => { this.modelSaved = false; }, 2000);
+      showToast('✓ Model zapisany w localStorage', 'success');
+    },
+
+    async changePassword() {
+      this.passwordMsg = '';
+      if (!this.oldPassword) { this.passwordMsg = '✗ Wpisz stare hasło'; return; }
+      if (!this.newPassword || this.newPassword.length < 4) { this.passwordMsg = '✗ Hasło min. 4 znaki'; return; }
+      if (this.newPassword !== this.newPasswordRepeat) { this.passwordMsg = '✗ Hasła nie są zgodne'; return; }
+      try {
+        const r = await fetch('/api/auth/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') },
+          body: JSON.stringify({ old_password: this.oldPassword, new_password: this.newPassword }),
+        });
+        const d = await r.json();
+        if (r.ok) {
+          showToast('✓ Hasło zmienione — zaloguj się ponownie', 'success');
+          this.passwordMsg = '✓ Hasło zmienione';
+          setTimeout(() => { localStorage.clear(); location.href = '/login'; }, 2000);
+        } else {
+          this.passwordMsg = '✗ ' + (d.detail || 'Błąd');
+        }
+      } catch {
+        this.passwordMsg = '✗ Błąd sieci';
+      }
     },
 
     async saveApiKeys() {
@@ -189,12 +249,12 @@ function settingsApp() {
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') },
           body: JSON.stringify(body),
         });
-        if (r.ok) { this.apiSaveMsg = '✓ Zapisano w .env'; setTimeout(() => { this.apiSaveMsg = ''; }, 3000); }
+        if (r.ok) { showToast('✓ Klucze API zapisane', 'success'); this.apiSaveMsg = '✓ Zapisano w .env'; setTimeout(() => { this.apiSaveMsg = ''; }, 3000); }
         else { this.apiSaveMsg = '✗ Błąd: ' + r.status; }
       } catch { this.apiSaveMsg = '✗ Błąd sieci'; }
     },
 
-    clearCache() { localStorage.clear(); this.cacheCleared = true; setTimeout(() => { location.reload(); }, 1000); },
+    clearCache() { localStorage.clear(); showToast('✓ Cache wyczyszczony — odświeżam', 'success'); setTimeout(() => { location.reload(); }, 1000); },
 
     logout() {
       const rt = localStorage.getItem('villanyan_refresh_token');

@@ -3,6 +3,7 @@
 import asyncio
 import os
 import subprocess
+import pathlib
 from datetime import UTC, datetime
 
 import psutil
@@ -14,6 +15,44 @@ from backend.core.models import User
 from backend.core.security import get_current_user
 
 router = APIRouter(prefix="/api/system", tags=["system"])
+
+PROJECT_DIR = pathlib.Path(__file__).parent.parent.parent
+
+
+def _format_uptime(seconds: float) -> str:
+    days = int(seconds // 86400)
+    hours = int((seconds % 86400) // 3600)
+    mins = int((seconds % 3600) // 60)
+    parts = []
+    if days > 0: parts.append(f"{days}d")
+    if hours > 0: parts.append(f"{hours}h")
+    parts.append(f"{mins}m")
+    return " ".join(parts)
+
+
+def _get_last_commit() -> str:
+    try:
+        result = subprocess.run(
+            ["git", "log", "--oneline", "-1"],
+            capture_output=True, text=True, timeout=5,
+            cwd=str(PROJECT_DIR),
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()[:60]
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return "—"
+
+
+@router.get("/info")
+async def get_system_info(user: User = Depends(get_current_user)):
+    """System info: version, last commit, uptime."""
+    boot_time = psutil.boot_time()
+    uptime_seconds = datetime.now(UTC).timestamp() - boot_time
+    return {
+        "last_commit": _get_last_commit(),
+        "uptime": _format_uptime(uptime_seconds),
+    }
 
 
 def _render_template(request: Request, template_name: str, **context):

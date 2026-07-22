@@ -205,7 +205,27 @@
 
   {# ═══════════════════════════════════════════════════════════════════ SCRIPTS ═══ #}
   <script>
-    // ═══════════════════════════════════════════════════════ AUTH ═══
+    // ═══════════════════════════════════════════ GLOBAL TOAST SYSTEM ═══
+    function showToast(msg, type, duration) {
+      if (!type) type = 'success';
+      if (!duration) duration = 3000;
+      const t = document.createElement('div');
+      const colors = {success:'#00D18B',danger:'#FF453A',warning:'#FF9F0A'};
+      t.style.cssText = `background:${colors[type]||colors.success};color:#000;padding:0.75rem 1.25rem;border-radius:0.5rem;font-size:0.875rem;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.4);max-width:320px;`;
+      t.textContent = msg;
+      const container = document.getElementById('toast-container') || (() => {
+        const c = document.createElement('div');
+        c.id = 'toast-container';
+        c.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;';
+        document.body.appendChild(c);
+        return c;
+      })();
+      t.style.animation = 'fadeIn 0.2s ease';
+      container.appendChild(t);
+      setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, duration);
+    }
+
+    // ═══════════════════════════════════════════ AUTH ═══
     document.addEventListener('htmx:configRequest', function(evt) {
       const token = localStorage.getItem('villanyan_token');
       if (token) evt.detail.headers['Authorization'] = 'Bearer ' + token;

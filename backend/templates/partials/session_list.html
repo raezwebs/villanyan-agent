@@ -1,6 +1,5 @@
 <div id="session-list-inner">
-  <div class="space-y-1 px-2 py-2" id="session-items">
-  </div>
+  <div class="space-y-1 px-2 py-2" id="session-items"></div>
 </div>
 <script>
 (async function() {
@@ -11,14 +10,23 @@
     });
     if (!res.ok) { container.innerHTML = '<div class="text-center text-secondary text-xs py-4">Brak dostępu</div>'; return; }
     const data = await res.json();
-    if (!data.items || data.items.length === 0) {
-      container.innerHTML = '<div class="text-center text-secondary text-xs py-4">Brak konwersacji</div>';
+    const items = data.items || [];
+    if (items.length === 0) {
+      container.innerHTML = '<div class="text-center text-secondary text-xs py-8">' +
+        '<div class="text-lg mb-1">💬</div>' +
+        '<div>Brak konwersacji</div>' +
+        '<button onclick="document.querySelector(\'[x-data=\'chatApp()\']\')?.__x?.$data?.createSession()" class="mt-2 text-xs bg-accent text-page px-3 py-1.5 rounded-lg font-bold hover:bg-accent/90">+ Nowa</button></div>';
       return;
     }
-    for (const s of data.items.slice(0, 20)) {
-      const title = s.title || 'Sesja #' + s.id;
-      container.innerHTML += '<div onclick="selectSession(' + s.id + ')" class="px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-surface-hover transition-colors truncate">' + title + '</div>';
-    }
+    // Get active session from Alpine store
+    const app = document.querySelector('[x-data="chatApp()"]')?.__x?.$data;
+    const activeSid = app?.activeSession;
+
+    container.innerHTML = items.slice(0, 30).map(s => {
+      const title = s.title && s.title !== 'null' ? s.title : 'Sesja #' + s.id;
+      const isActive = s.id == activeSid;
+      return '<div data-sid="' + s.id + '" onclick="selectSession(' + s.id + ')" class="px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-surface-hover transition-colors truncate ' + (isActive ? 'nav-item-active' : '') + '">' + title + '</div>';
+    }).join('');
   } catch { container.innerHTML = '<div class="text-center text-secondary text-xs py-4">Błąd połączenia</div>'; }
 })();
 </script>

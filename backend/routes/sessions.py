@@ -52,6 +52,11 @@ async def _generate_llm_response(prompt: str, model: str | None = None) -> str:
     return "[Brak połączenia z LLM. Sprawdź OLLAMA_API_URL w .env]"
 
 
+class SessionUpdate(BaseModel):
+    title: str = ""
+    model_config = {"extra": "ignore"}
+
+
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 HERMES_STATE_DB = os.path.expanduser("~/.hermes/state.db")
 LOCAL_DB = pathlib.Path(__file__).parent.parent.parent / "villanyan-sessions.db"
@@ -207,6 +212,32 @@ async def get_session_messages(
     """Get messages for a session."""
     messages = await asyncio.to_thread(_query_messages, session_id, limit, before_id)
     return {"session_id": session_id, "messages": messages, "count": len(messages)}
+
+
+@router.patch("/{session_id}")
+async def update_session(
+    session_id: str,
+    body: SessionUpdate,
+    user: User = Depends(get_current_user),
+):
+    """Update a session (title, etc.)."""
+    db_path = _get_or_create_db()
+    conn = sqlite3.connect(str(db_path))
+    try:
+        updates = {}
+        if body.title:
+            updates["title"] = body.title
+        if not updates:
+            return {"id": session_id, "updated": False}
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        values = list(updates.values()) + [session_id]
+        conn.execute(f"UPDATE sessions SET {set_clause} WHERE id = ?", values)
+        conn.commit()
+        return {"id": session_id, "updated": True, **updates}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error: {exc}")
+    finally:
+        conn.close()
 
 
 class MessageSend(BaseModel):

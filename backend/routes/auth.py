@@ -16,6 +16,7 @@ from backend.core.security import (
     create_access_token, create_refresh_token, get_current_user,
     hash_password, rate_limit_login, verify_password, verify_refresh_token,
 )
+from backend.routes.settings import _write_env_key
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -102,3 +103,23 @@ async def auth_check(user: User = Depends(get_current_user)):
 @router.get("/me", response_model=UserOut)
 async def get_me(user: User = Depends(get_current_user)):
     return user
+
+
+@router.post("/change-password")
+async def change_password(
+    body: dict,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Change the VILLANYAN_PASSWORD. Requires old password."""
+    old = body.get("old_password", "")
+    new_pass = body.get("new_password", "")
+    if not new_pass or len(new_pass) < 4:
+        raise HTTPException(status_code=400, detail="Hasło min. 4 znaki")
+    if not old or old != _VILLANYAN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Nieprawidłowe stare hasło")
+    _write_env_key("VILLANYAN_PASSWORD", new_pass)
+    # Update DB hash
+    user.password_hash = hash_password(new_pass)
+    await db.flush()
+    return {"status": "ok", "message": "Hasło zmienione — zaloguj się ponownie"}

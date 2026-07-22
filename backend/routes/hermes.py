@@ -4,6 +4,7 @@ import os
 import pathlib
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
@@ -26,6 +27,23 @@ class MemoryUpdate(BaseModel):
 
 
 # ── LLM helpers ────────────────────────────────────────────────────────
+
+async def _try_ollama(prompt: str, model: str | None = None) -> str | None:
+    """Try local Ollama (primary LLM on RPi)."""
+    ollama_url = os.getenv("OLLAMA_API_URL", "http://192.168.1.109:11434")
+    ollama_model = model or os.getenv("OLLAMA_MODEL", "deepseek-r1:1.5b")
+    try:
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            r = await client.post(
+                f"{ollama_url}/api/generate",
+                json={"model": ollama_model, "prompt": prompt, "stream": False},
+            )
+            if r.status_code == 200:
+                text = r.json().get("response", "").strip()
+                return text if text else None
+    except Exception:
+        return None
+
 
 async def _try_gemini(prompt: str, model: str | None = None) -> str | None:
     """Try Google Gemini for completion."""
@@ -77,13 +95,28 @@ async def send_message(
     prompt = body.content
     model = body.model
 
-    response = await _try_gemini(prompt, model) or await _try_openai(prompt, model) or await _fallback(prompt)
+    response = await _try_ollama(prompt, model) or await _try_gemini(prompt, model) or await _try_openai(prompt, model) or await _fallback(prompt)
 
     return {
         "response": response,
         "session_id": body.session_id,
         "user_id": user.id,
     }
+
+
+@router.get("/ollama-status")
+async def ollama_status(user: User = Depends(get_current_user)):
+    """Check Ollama connection and list available models."""
+    url = os.getenv("OLLAMA_API_URL", "http://192.168.1.109:11434")
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as c:
+            r = await c.get(f"{url}/api/tags")
+            if r.status_code == 200:
+                models = [m["name"] for m in r.json().get("models", [])]
+                return {"online": True, "url": url, "models": models}
+    except Exception:
+        pass
+    return {"online": False, "url": url, "models": []}
 
 
 @router.get("/agent")

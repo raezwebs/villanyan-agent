@@ -350,6 +350,7 @@ td { padding: 0.75rem 1rem; }
 .w-2 { width: 0.5rem; }
 .h-2\.5 { height: 0.625rem; }
 .w-2\.5 { width: 0.625rem; }
+.h-1\.5 { height: 0.375rem; }
 
 /* Space */
 .space-y-0\.5 > * + * { margin-top: 0.125rem; }
@@ -362,3 +363,12 @@ td { padding: 0.75rem 1rem; }
 @media (min-width: 768px) {
   .hidden\.md\\:flex { display: flex; }
 }
+
+/* Extra utilities */
+.last\:border-0 > *:last-child { border-width: 0; }
+.last\:border-b-0 > *:last-child { border-bottom-width: 0; }
+.py-2\.5 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+.gap-1\.5 { gap: 0.375rem; }
+.rotate-180 { transform: rotate(180deg); }
+.col-span-2 { grid-column: span 2 / span 2; }
+.flex-wrap { flex-wrap: wrap; }

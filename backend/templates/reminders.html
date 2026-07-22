@@ -133,5 +133,40 @@ function remindersApp() {
     }
   };
 }
+
+// Global functions called from reminder_list.html partial
+async function toggleReminder(id) {
+  const token = localStorage.getItem('villanyan_token');
+  try {
+    await fetch('/api/reminders/' + id + '/toggle', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ done: true })
+    }).catch(() => fetch('/api/obsidian/reminders/' + id + '/toggle', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    }));
+  } catch {}
+  htmx.trigger('#reminder-list', 'load');
+  htmx.trigger('#reminder-stats', 'load');
+  location.reload();
+}
+async function deleteReminder(id) {
+  if (!confirm('Usunąć?')) return;
+  const token = localStorage.getItem('villanyan_token');
+  try {
+    const res = await fetch('/api/reminders/' + id, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) await fetch('/api/obsidian/reminders/' + id, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+  } catch {}
+  htmx.trigger('#reminder-list', 'load');
+  htmx.trigger('#reminder-stats', 'load');
+  location.reload();
+}
 </script>
 {% endblock %}

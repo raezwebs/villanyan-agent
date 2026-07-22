@@ -1,47 +1,77 @@
 {% extends "base.html" %}
 {% block title %}Logowanie — Villanyan-Agent{% endblock %}
+{% block head %}
+<style>
+.login-card {
+  animation: fadeSlideIn 0.6s ease-out;
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.password-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+</style>
+{% endblock %}
 {% block content %}
-<div class="flex items-center justify-center min-h-[80vh]">
-  <div class="bg-surface border border-border-custom rounded-2xl p-8 w-full max-w-md shadow-2xl">
+<div class="flex items-center justify-center min-h-[80vh] login-card">
+  <div class="bg-surface border border-border-custom rounded-2xl p-8 w-full max-w-md shadow-2xl"
+       style="background: rgba(17,17,17,0.9); backdrop-filter: blur(10px);">
     <div class="flex flex-col items-center mb-8">
-      <div class="text-5xl mb-2">⬡</div>
-      <h1 class="text-2xl font-black tracking-wider">VILLANYAN</h1>
-      <p class="text-xs text-secondary/60 font-medium tracking-widest mt-1">VILLANYAN PERSONAL AGENT</p>
+      <div class="text-5xl mb-2 text-accent">⬡</div>
+      <h1 class="text-2xl font-black tracking-wider text-accent">VILLANYAN</h1>
+      <p class="text-xs text-secondary/60 font-medium tracking-widest mt-1">PERSONAL AGENT — RPI</p>
     </div>
-    <form id="login-form" class="space-y-4">
-      <input type="password" id="password" placeholder="Hasło dostępu" autofocus maxlength="128"
-        class="w-full bg-page border border-border-custom rounded-lg px-4 py-3 text-sm focus:border-accent outline-none transition-colors" />
-      <p id="login-error" class="text-danger text-sm text-center hidden"></p>
-      <button type="submit" id="login-btn"
-        class="w-full bg-accent text-page font-bold py-3 rounded-lg hover:bg-accent/90 transition-colors">
-        Zaloguj się
+    <form id="login-form" class="space-y-4" @submit.prevent="login()" x-data="loginApp()">
+      <div class="relative">
+        <input type="password" id="password" x-model="password" placeholder="Hasło dostępu" autofocus maxlength="128"
+          class="w-full bg-page border border-border-custom rounded-lg px-4 py-3 pr-12 text-sm focus:border-accent outline-none transition-colors" />
+        <span @click="togglePassword()" class="password-toggle absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-primary text-sm">
+          <span x-text="showPassword ? '🙈' : '👁️'"></span>
+        </span>
+      </div>
+      <p id="login-error" class="text-danger text-sm text-center" x-show="error" x-text="error"></p>
+      <button type="submit" :disabled="loading"
+        class="w-full bg-accent text-page font-bold py-3 rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+        x-text="loading ? 'Logowanie...' : 'Zaloguj się'">
       </button>
     </form>
   </div>
 </div>
-{% endblock %}
-{% block scripts %}
 <script>
-document.getElementById('login-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const btn = document.getElementById('login-btn');
-  const err = document.getElementById('login-error');
-  btn.disabled = true;
-  btn.textContent = 'Logowanie...';
-  err.classList.add('hidden');
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: document.getElementById('password').value }),
-    });
-    if (!res.ok) { err.textContent = 'Nieprawidłowe hasło'; err.classList.remove('hidden'); return; }
-    const data = await res.json();
-    localStorage.setItem('villanyan_token', data.access_token);
-    if (data.refresh_token) localStorage.setItem('villanyan_refresh_token', data.refresh_token);
-    window.location.href = '/';
-  } catch { err.textContent = 'Błąd połączenia z serwerem'; err.classList.remove('hidden'); }
-  finally { btn.disabled = false; btn.textContent = 'Zaloguj się'; }
-});
+function loginApp() {
+  return {
+    password: '',
+    error: '',
+    loading: false,
+    showPassword: false,
+    togglePassword() {
+      this.showPassword = !this.showPassword;
+      const el = document.getElementById('password');
+      el.type = this.showPassword ? 'text' : 'password';
+    },
+    async login() {
+      if (!this.password.trim()) return;
+      this.loading = true;
+      this.error = '';
+      const btn = document.getElementById('login-form').querySelector('button[type="submit"]');
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: this.password })
+        });
+        if (!res.ok) { this.error = 'Nieprawidłowe hasło'; return; }
+        const data = await res.json();
+        localStorage.setItem('villanyan_token', data.access_token);
+        if (data.refresh_token) localStorage.setItem('villanyan_refresh_token', data.refresh_token);
+        window.location.href = '/';
+      } catch { this.error = 'Błąd połączenia z serwerem'; }
+      finally { this.loading = false; }
+    }
+  };
+}
 </script>
 {% endblock %}

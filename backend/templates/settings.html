@@ -19,9 +19,7 @@
         <div><div class="font-bold">🇬🇧 English</div><div class="text-xs text-secondary">Switch interface to English</div></div>
       </label>
     </div>
-    <div x-show="langSaved" x-transition class="text-xs text-success mt-2 flex items-center gap-1">
-      <span>✓ Język zapisany (odśwież stronę)</span>
-    </div>
+    <div x-show="langSaved" x-transition class="text-xs text-success mt-2">✓ Język zapisany (odśwież stronę)</div>
   </div>
 
   <!-- Główny Model AI -->
@@ -34,30 +32,54 @@
       <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
       <option value="gpt-4o-mini">GPT-4o Mini</option>
     </select>
-    <div x-show="modelSaved" x-transition class="text-xs text-success mt-2 flex items-center gap-1">
-      <span>✓ Model zapisany</span>
-    </div>
+    <div x-show="modelSaved" x-transition class="text-xs text-success mt-2">✓ Model zapisany w localStorage</div>
   </div>
 
-  <!-- API Keys -->
+  <!-- Klucze API (zapis przez PATCH /api/settings) -->
   <div class="bg-surface border border-border-custom rounded-xl p-5">
     <h3 class="font-bold mb-4">Klucze API</h3>
     <div class="space-y-4">
       <div>
         <label class="block text-xs text-secondary mb-1">Gemini API Key</label>
-        <input type="password" x-model="geminiKey" @change="saveGeminiKey()"
-               placeholder="Wpisz klucz lub zostaw puste"
+        <input type="password" x-model="geminiKey" placeholder="Wpisz klucz lub zostaw puste"
                class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm text-primary focus:border-accent outline-none" />
-        <div x-show="geminiSaved" x-transition class="text-xs text-success mt-1">✓ Zapisano</div>
       </div>
       <div>
         <label class="block text-xs text-secondary mb-1">OpenAI API Key</label>
-        <input type="password" x-model="openaiKey" @change="saveOpenAIKey()"
-               placeholder="Wpisz klucz lub zostaw puste"
+        <input type="password" x-model="openaiKey" placeholder="Wpisz klucz lub zostaw puste"
                class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm text-primary focus:border-accent outline-none" />
-        <div x-show="openaiSaved" x-transition class="text-xs text-success mt-1">✓ Zapisano</div>
       </div>
+      <div>
+        <label class="block text-xs text-secondary mb-1">Ollama URL</label>
+        <input type="text" x-model="ollamaUrl" placeholder="http://192.168.1.109:11434"
+               class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm font-mono text-primary focus:border-accent outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs text-secondary mb-1">Ollama Model</label>
+        <input type="text" x-model="ollamaModel" placeholder="deepseek-r1:1.5b"
+               class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm font-mono text-primary focus:border-accent outline-none" />
+      </div>
+      <button @click="saveApiKeys()"
+              class="bg-accent text-page px-4 py-2 rounded-lg text-sm font-bold hover:bg-accent/90 transition-colors">
+        Zapisz klucze API
+      </button>
+      <span x-show="apiSaveMsg" x-text="apiSaveMsg" class="text-sm ml-3"
+            :class="apiSaveMsg.includes('✓') ? 'text-success' : 'text-danger'"></span>
     </div>
+  </div>
+
+  <!-- Status Ollamy -->
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <h3 class="font-bold mb-4">⬡ Status Ollamy</h3>
+    <div class="flex items-center gap-3 mb-3">
+      <span class="w-3 h-3 rounded-full" :class="ollamaOnline ? 'bg-success' : 'bg-danger'"></span>
+      <span x-text="ollamaOnline ? 'Online' : 'Offline'" class="font-bold" :class="ollamaOnline ? 'text-success' : 'text-danger'"></span>
+      <span class="text-xs text-secondary" x-text="ollamaUrl"></span>
+    </div>
+    <div x-show="ollamaModels.length" class="text-xs text-secondary">
+      Modele: <span x-text="ollamaModels.join(', ')"></span>
+    </div>
+    <button @click="checkOllama()" class="mt-2 text-xs px-3 py-1.5 rounded bg-surface-hover text-secondary hover:text-primary">Odśwież</button>
   </div>
 
   <!-- Informacje o systemie -->
@@ -65,27 +87,20 @@
     <h3 class="font-bold mb-4">Informacje o systemie</h3>
     <div class="space-y-2 text-sm">
       <div class="flex justify-between py-1 border-b border-border-custom">
-        <span class="text-secondary">Wersja aplikacji</span>
-        <span class="font-mono font-bold" x-text="appVersion"></span>
+        <span class="text-secondary">Wersja aplikacji</span><span class="font-mono font-bold" x-text="appVersion"></span>
       </div>
       <div class="flex justify-between py-1 border-b border-border-custom">
-        <span class="text-secondary">Python</span>
-        <span class="font-mono" x-text="pythonVersion"></span>
+        <span class="text-secondary">Python</span><span class="font-mono" x-text="pythonVersion"></span>
       </div>
       <div class="flex justify-between py-1 border-b border-border-custom">
-        <span class="text-secondary">Baza danych</span>
-        <span class="font-mono text-xs">SQLite (WAL)</span>
+        <span class="text-secondary">Baza danych</span><span class="font-mono text-xs">SQLite (WAL)</span>
       </div>
       <div class="flex justify-between py-1 border-b border-border-custom">
-        <span class="text-secondary">Port serwera</span>
-        <span class="font-mono">7890</span>
+        <span class="text-secondary">Port serwera</span><span class="font-mono">7890</span>
       </div>
       <div class="flex justify-between py-1">
         <span class="text-secondary">Status API</span>
-        <span class="inline-flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-success"></span>
-          <span class="text-success font-bold">Online</span>
-        </span>
+        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-success"></span><span class="text-success font-bold">Online</span></span>
       </div>
     </div>
   </div>
@@ -96,13 +111,11 @@
     <div class="space-y-3">
       <button @click="clearCache()"
               class="w-full border border-border-custom bg-surface-hover/50 px-4 py-3 rounded-lg text-sm font-bold hover:bg-surface-hover transition-colors text-left flex items-center justify-between">
-        <span>Wyczyść cache lokalny</span>
-        <span class="text-xs text-secondary">usuwa localStorage</span>
+        <span>Wyczyść cache lokalny</span><span class="text-xs text-secondary">usuwa localStorage</span>
       </button>
       <button @click="logout()"
               class="w-full border border-danger/30 bg-danger/10 px-4 py-3 rounded-lg text-sm font-bold hover:bg-danger/20 transition-colors text-left flex items-center justify-between">
-        <span>Wyloguj się</span>
-        <span class="text-xs text-danger">usuwa token i przekierowuje do loginu</span>
+        <span>Wyloguj się</span><span class="text-xs text-danger">usuwa token i przekierowuje do loginu</span>
       </button>
     </div>
     <div x-show="cacheCleared" x-transition class="text-xs text-success mt-3">✓ Cache wyczyszczony</div>
@@ -117,21 +130,35 @@ function settingsApp() {
     langSaved: false,
     selectedModel: localStorage.getItem('villanyan_model') || 'deepseek-v4-flash',
     modelSaved: false,
-    geminiKey: '',
-    openaiKey: '',
-    geminiSaved: false,
-    openaiSaved: false,
-    appVersion: '3.0.0',
-    pythonVersion: '',
+    geminiKey: '', openaiKey: '', ollamaUrl: '', ollamaModel: '',
+    apiSaveMsg: '',
+    appVersion: '3.0.0', pythonVersion: '3.13.5',
     cacheCleared: false,
+    ollamaOnline: false, ollamaModels: [],
 
     init() {
-      // Fetch python version from health
-      fetch('/api/health')
-        .then(r => r.json())
-        .then(d => { this.appVersion = d.version || this.appVersion; })
-        .catch(() => {});
-      this.pythonVersion = '3.13.5';
+      const token = localStorage.getItem('villanyan_token');
+      // Load settings from API
+      fetch('/api/settings', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(r => r.json()).then(d => {
+          this.geminiKey = d.GEMINI_API_KEY || '';
+          this.openaiKey = d.OPENAI_API_KEY || '';
+          this.ollamaUrl = d.OLLAMA_API_URL || 'http://192.168.1.109:11434';
+          this.ollamaModel = d.OLLAMA_MODEL || 'deepseek-r1:1.5b';
+        }).catch(() => {});
+
+      fetch('/api/health').then(r => r.json()).then(d => { this.appVersion = d.version || this.appVersion; }).catch(() => {});
+      this.checkOllama();
+    },
+
+    checkOllama() {
+      fetch('/api/hermes/ollama-status', {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
+      }).then(r => r.json()).then(d => {
+        this.ollamaOnline = d.online;
+        this.ollamaModels = d.models || [];
+        this.ollamaUrl = d.url || this.ollamaUrl;
+      }).catch(() => {});
     },
 
     saveLang() {
@@ -146,33 +173,29 @@ function settingsApp() {
       setTimeout(() => { this.modelSaved = false; }, 2000);
     },
 
-    saveGeminiKey() {
-      localStorage.setItem('villanyan_gemini_key', this.geminiKey);
-      this.geminiSaved = true;
-      setTimeout(() => { this.geminiSaved = false; }, 2000);
+    async saveApiKeys() {
+      this.apiSaveMsg = 'Zapisywanie...';
+      const body = {};
+      if (this.geminiKey) body.GEMINI_API_KEY = this.geminiKey;
+      if (this.openaiKey) body.OPENAI_API_KEY = this.openaiKey;
+      if (this.ollamaUrl) body.OLLAMA_API_URL = this.ollamaUrl;
+      if (this.ollamaModel) body.OLLAMA_MODEL = this.ollamaModel;
+      try {
+        const r = await fetch('/api/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') },
+          body: JSON.stringify(body),
+        });
+        if (r.ok) { this.apiSaveMsg = '✓ Zapisano w .env'; setTimeout(() => { this.apiSaveMsg = ''; }, 3000); }
+        else { this.apiSaveMsg = '✗ Błąd: ' + r.status; }
+      } catch { this.apiSaveMsg = '✗ Błąd sieci'; }
     },
 
-    saveOpenAIKey() {
-      localStorage.setItem('villanyan_openai_key', this.openaiKey);
-      this.openaiSaved = true;
-      setTimeout(() => { this.openaiSaved = false; }, 2000);
-    },
-
-    clearCache() {
-      localStorage.clear();
-      this.cacheCleared = true;
-      setTimeout(() => { location.reload(); }, 1000);
-    },
+    clearCache() { localStorage.clear(); this.cacheCleared = true; setTimeout(() => { location.reload(); }, 1000); },
 
     logout() {
       const rt = localStorage.getItem('villanyan_refresh_token');
-      if (rt) {
-        fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: rt })
-        }).catch(() => {});
-      }
+      if (rt) { fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) }).catch(() => {}); }
       localStorage.removeItem('villanyan_token');
       localStorage.removeItem('villanyan_refresh_token');
       window.location.href = '/login';

@@ -1,156 +1,188 @@
 {% extends "base.html" %}
 {% block title %}Czat — Villanyan-Agent{% endblock %}
 {% block content %}
-<div class="flex h-full -m-6">
+<div class="flex h-full -m-6" x-data="chatApp()">
   {# Sidebar sesji #}
   <div class="hidden md:flex w-64 shrink-0 border-r border-border-custom bg-surface/50 flex-col">
     <div class="p-3 border-b border-border-custom">
-      <button onclick="createSession()"
+      <button @click="createSession()"
         class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-accent text-page rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors">
         + Nowa konwersacja
       </button>
     </div>
-    <div class="flex-1 overflow-y-auto" id="session-list"
+    <div class="flex-1 overflow-y-auto px-2 py-2" id="session-list"
          hx-get="/partials/session-list" hx-trigger="load, every 10s" hx-swap="innerHTML">
     </div>
   </div>
 
   {# Chat #}
   <div class="flex-1 flex flex-col min-w-0">
+    {# Header z statusem Ollamy #}
+    <div class="px-4 py-2 border-b border-border-custom bg-surface/30 flex items-center gap-3 text-xs">
+      <span class="font-bold">⬡ Villanyan-Chat</span>
+      <span id="ollama-status" class="text-secondary">Sprawdzanie połączenia...</span>
+    </div>
+
+    {# Wiadomości #}
     <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4" id="chat-messages">
       <div class="flex flex-col items-center justify-center h-full text-secondary">
+        <div class="text-3xl mb-2">⬡</div>
         <p class="text-sm">Wybierz konwersację lub utwórz nową</p>
         <p class="text-xs mt-1 opacity-60">Villanyan — VILLANYAN Personal Agent</p>
       </div>
     </div>
 
+    {# Input #}
     <div class="border-t border-border-custom p-3 md:p-4 bg-surface/30">
       <div class="flex items-end gap-2 max-w-4xl mx-auto">
         <div class="flex-1 relative">
           <textarea id="chat-input" rows="1"
             placeholder="Napisz wiadomość..."
+            @keydown="if ($event.key === 'Enter' && !$event.shiftKey) { $event.preventDefault(); sendMessage(); }"
             class="w-full bg-surface border border-border-custom rounded-xl px-4 py-3 text-sm text-primary placeholder-secondary/50 resize-none outline-none focus:border-accent/50 transition-all"
             style="min-height:44px;max-height:150px"></textarea>
         </div>
-        <button id="chat-send" class="p-3 bg-accent text-page rounded-xl hover:bg-accent/90 transition-all disabled:opacity-30 shrink-0">
+        <button @click="sendMessage()" :disabled="sending"
+          class="p-3 bg-accent text-page rounded-xl hover:bg-accent/90 transition-all disabled:opacity-30 shrink-0">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
     </div>
   </div>
 </div>
-{% endblock %}
-{% block scripts %}
-<script>
-let activeSession = null;
-let sending = false;
-let pollInterval = null;
 
-document.getElementById('chat-send').addEventListener('click', sendMessage);
-document.getElementById('chat-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  setTimeout(() => {
-    const el = document.getElementById('chat-input');
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 150) + 'px';
-  }, 0);
+<script>
+// — Ollama status check (topbar) —
+document.addEventListener('DOMContentLoaded', async function checkOllama() {
+  try {
+    const r = await fetch('/api/hermes/ollama-status', {
+      headers: { Authorization: 'Bearer ' + localStorage.getItem('villanyan_token') }
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    const el = document.getElementById('ollama-status');
+    if (d.online) {
+      const models = (d.models || []).slice(0, 3).join(', ');
+      el.innerHTML = '<span class="text-success">⬡ Ollama online</span> · ' + (models || 'brak modeli');
+    } else {
+      el.innerHTML = '<span class="text-warning">⚠ Ollama offline</span> · ' + d.url;
+    }
+  } catch {}
 });
 
-async function sendMessage() {
-  const input = document.getElementById('chat-input');
-  const text = input.value.trim();
-  if (!text || sending) return;
-  if (!activeSession) {
-    const sid = await createSession();
-    if (!sid) return;
-  }
-  sending = true;
-  input.value = '';
-  addMessage('user', text);
-  try {
-    const res = await fetch('/api/sessions/' + activeSession + '/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) throw new Error('Send failed');
-    startPolling();
-  } catch { addError('Błąd wysyłania'); sending = false; }
-}
+// — Chat Alpine.js app —
+function chatApp() {
+  return {
+    activeSession: null,
+    sending: false,
+    pollInterval: null,
 
-function startPolling() {
-  if (pollInterval) clearInterval(pollInterval);
-  const start = Date.now();
-  pollInterval = setInterval(async () => {
-    if (Date.now() - start > 60000) { clearInterval(pollInterval); sending = false; return; }
-    const msgs = await fetchMessages(activeSession);
-    if (msgs && msgs.length > 0) {
-      updateMessages(msgs);
-      const last = msgs[msgs.length - 1];
-      if (last.role === 'assistant') { clearInterval(pollInterval); sending = false; }
+    sendMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text || this.sending) return;
+
+      const doSend = async () => {
+        if (!this.activeSession) {
+          const sid = await this.createSession();
+          if (!sid) return;
+        }
+        this.sending = true;
+        input.value = '';
+        this.addMessage('user', text);
+        this.addThinking();
+        try {
+          const res = await fetch('/api/sessions/' + this.activeSession + '/send', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token')
+            },
+            body: JSON.stringify({ content: text }),
+          });
+          this.removeThinking();
+          if (!res.ok) { this.addError('Błąd: ' + res.status); return; }
+          const data = await res.json();
+          this.addMessage('assistant', data.content);
+        } catch(e) {
+          this.removeThinking();
+          this.addError('Błąd połączenia z Hermesem');
+        } finally {
+          this.sending = false;
+        }
+      };
+      doSend();
+    },
+
+    addMessage(role, content) {
+      const el = document.getElementById('chat-messages');
+      const isUser = role === 'user';
+      el.innerHTML += '<div class="flex ' + (isUser ? 'justify-end' : 'justify-start') + '">' +
+        '<div class="max-w-[80%] ' + (isUser ? 'bg-accent text-page rounded-2xl rounded-br-md' : 'bg-surface border border-border-custom rounded-2xl rounded-bl-md') + ' px-4 py-2">' +
+        '<div class="text-sm leading-relaxed whitespace-pre-wrap break-words">' + this.escapeHtml(content) + '</div></div></div>';
+      el.scrollTop = el.scrollHeight;
+    },
+
+    addThinking() {
+      const el = document.getElementById('chat-messages');
+      el.innerHTML += '<div id="thinking-bubble" class="flex justify-start"><div class="bg-surface border border-border-custom rounded-2xl rounded-bl-md px-4 py-3"><div class="flex gap-1.5">' +
+        '<div class="w-2 h-2 bg-accent rounded-full animate-bounce" style="animation-delay:0ms"></div>' +
+        '<div class="w-2 h-2 bg-accent rounded-full animate-bounce" style="animation-delay:150ms"></div>' +
+        '<div class="w-2 h-2 bg-accent rounded-full animate-bounce" style="animation-delay:300ms"></div>' +
+        '</div></div></div>';
+      el.scrollTop = el.scrollHeight;
+    },
+
+    removeThinking() {
+      document.getElementById('thinking-bubble')?.remove();
+    },
+
+    addError(msg) {
+      document.getElementById('chat-messages').innerHTML +=
+        '<div class="text-center"><span class="text-xs text-danger bg-danger/10 px-3 py-1 rounded-full">' + msg + '</span></div>';
+    },
+
+    async createSession() {
+      try {
+        const res = await fetch('/api/sessions', { method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        this.activeSession = data.id;
+        document.getElementById('chat-messages').innerHTML = '';
+        htmx.trigger('#session-list', 'load');
+        return data.id;
+      } catch { return null; }
+    },
+
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
-  }, 2000);
+  };
 }
 
-async function fetchMessages(sessionId) {
-  try {
-    const res = await fetch('/api/sessions/' + sessionId + '/messages');
-    const data = await res.json();
-    return data.messages || [];
-  } catch { return []; }
-}
-
-function addMessage(role, content) {
-  const el = document.getElementById('chat-messages');
-  el.innerHTML += '<div class="flex ' + (role === 'user' ? 'justify-end' : 'justify-start') + '">' +
-    '<div class="max-w-[80%] ' + (role === 'user' ? 'bg-accent text-page rounded-2xl rounded-br-md' : 'bg-surface border border-border-custom rounded-2xl rounded-bl-md') + ' px-4 py-2">' +
-    '<div class="text-sm leading-relaxed whitespace-pre-wrap break-words">' + escapeHtml(content) + '</div></div></div>';
-  el.scrollTop = el.scrollHeight;
-}
-
-function updateMessages(msgs) {
-  const el = document.getElementById('chat-messages');
-  el.innerHTML = '';
-  for (const m of msgs) {
-    el.innerHTML += '<div class="flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start') + '">' +
-      '<div class="max-w-[80%] ' + (m.role === 'user' ? 'bg-accent text-page rounded-2xl rounded-br-md' : 'bg-surface border border-border-custom rounded-2xl rounded-bl-md') + ' px-4 py-2">' +
-      '<div class="text-sm leading-relaxed whitespace-pre-wrap break-words">' + escapeHtml(m.content || '') + '</div></div></div>';
+// Expose selectSession globally for HTMX partial
+window.selectSession = function(sid) {
+  const app = document.querySelector('[x-data="chatApp()"]')?.__x?.$data;
+  if (app) {
+    app.activeSession = sid;
+    // Load messages
+    fetch('/api/sessions/' + sid + '/messages', {
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
+    }).then(r => r.json()).then(data => {
+      const el = document.getElementById('chat-messages');
+      el.innerHTML = '';
+      (data.messages || []).forEach(m => {
+        el.innerHTML += '<div class="flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start') + '">' +
+          '<div class="max-w-[80%] ' + (m.role === 'user' ? 'bg-accent text-page rounded-2xl rounded-br-md' : 'bg-surface border border-border-custom rounded-2xl rounded-bl-md') + ' px-4 py-2">' +
+          '<div class="text-sm leading-relaxed whitespace-pre-wrap break-words">' + app.escapeHtml(m.content || '') + '</div></div></div>';
+      });
+      el.scrollTop = el.scrollHeight;
+    }).catch(() => {});
   }
-  el.scrollTop = el.scrollHeight;
-}
-
-function addError(msg) {
-  document.getElementById('chat-messages').innerHTML +=
-    '<div class="text-center"><span class="text-xs text-danger bg-danger/10 px-3 py-1 rounded-full">' + msg + '</span></div>';
-}
-
-async function createSession() {
-  try {
-    const res = await fetch('/api/sessions', { method: 'POST' });
-    if (!res.ok) return null;
-    const data = await res.json();
-    activeSession = data.id;
-    document.getElementById('chat-messages').innerHTML = '';
-    document.getElementById('session-list').setAttribute('hx-trigger', 'load');
-    htmx.process(document.getElementById('session-list'));
-    return data.id;
-  } catch { return null; }
-}
-
-function selectSession(sid) {
-  activeSession = sid;
-  loadMessages(sid);
-}
-
-async function loadMessages(sessionId) {
-  const msgs = await fetchMessages(sessionId);
-  updateMessages(msgs);
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
+};
 </script>
 {% endblock %}

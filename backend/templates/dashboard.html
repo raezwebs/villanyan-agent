@@ -3,45 +3,47 @@
 {% block content %}
 <div class="space-y-8">
 
-  {# Status Systemu — HTMX auto-refresh #}
+  {# Status Systemu — HTMX auto-refresh (partial public, auth przez configRequest) #}
   <div class="bg-surface border border-border-custom rounded-xl p-6 relative overflow-hidden cursor-pointer hover:border-success/50 transition-colors"
-       hx-get="/partials/system-metrics" hx-trigger="every 30s" hx-swap="innerHTML" id="system-metrics">
-    {% include "partials/system_metrics.html" %}
+       hx-get="/partials/system-metrics" hx-trigger="every 10s, load" hx-swap="innerHTML" id="system-metrics">
+    <div class="text-center text-secondary text-sm py-8">Ładowanie metryk systemu...</div>
   </div>
 
-  {# Welcome + przypomnienia #}
+  {# Welcome + przypomnienia (Alpine.js z auth) #}
   <div x-data="dashboardWelcome()">
-      <h1 class="text-2xl font-bold text-primary mb-1" x-text="'Witaj, ' + (username || 'Użytkowniku') + '!'"></h1>
-      <div class="flex items-center gap-4 text-sm text-secondary">
-        <span>📌 <span class="font-medium text-accent" x-text="pendingReminders">0</span> aktywnych przypomnień</span>
-        <span>✅ <span class="font-medium text-success" x-text="doneReminders">0</span> zrealizowanych</span>
-      </div>
+    <h1 class="text-2xl font-bold text-primary mb-1" x-text="'Witaj, ' + (username || 'Użytkowniku') + '!'"></h1>
+    <div class="flex items-center gap-4 text-sm text-secondary">
+      <span>📌 <span class="font-medium text-accent" id="reminder-active-count" x-text="pendingReminders">0</span> aktywnych przypomnień</span>
+      <span>✅ <span class="font-medium text-success" id="reminder-done-count" x-text="doneReminders">0</span> zrealizowanych</span>
     </div>
-    <script>
-    function dashboardWelcome() {
-      return {
-        username: 'Użytkowniku',
-        pendingReminders: 0,
-        doneReminders: 0,
-        init() {
-          const token = localStorage.getItem('villanyan_token');
-          fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
-            .then(r => r.json()).then(d => { this.username = d.username || 'Użytkowniku'; }).catch(() => {});
-          fetch('/api/reminders', { headers: { 'Authorization': 'Bearer ' + token } })
-            .then(r => r.json()).then(d => {
-              const items = d.items || [];
-              this.pendingReminders = items.filter(r => !r.done).length;
-              this.doneReminders = items.filter(r => r.done).length;
-            }).catch(() => {});
-        }
-      };
-    }
-    </script>
+  </div>
+  <script>
+  function dashboardWelcome() {
+    return {
+      username: 'Użytkowniku',
+      pendingReminders: 0,
+      doneReminders: 0,
+      init() {
+        const token = localStorage.getItem('villanyan_token');
+        if (!token) return;
+        fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+          .then(r => r.json()).then(d => { this.username = d.username || 'Użytkowniku'; }).catch(() => {});
+        Promise.all([
+          fetch('/api/reminders?done=false', { headers: { 'Authorization': 'Bearer ' + token } }),
+          fetch('/api/reminders?done=true', { headers: { 'Authorization': 'Bearer ' + token } }),
+        ]).then(async ([activeRes, doneRes]) => {
+          if (activeRes.ok) { const a = await activeRes.json(); this.pendingReminders = a.total ?? (a.items?.length ?? 0); }
+          if (doneRes.ok) { const d = await doneRes.json(); this.doneReminders = d.total ?? (d.items?.length ?? 0); }
+        }).catch(() => {});
+      }
+    };
+  }
+  </script>
 
   {# Grid #}
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-    {# Cloudilla #}
+    {# Cloudilla — Alpine.js fetch z auth #}
     <div class="bg-surface border border-border-custom rounded-xl p-5">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-bold flex items-center gap-2">
@@ -49,13 +51,23 @@
           cloudilla
         </h2>
       </div>
-      <div id="cloud-files"
-           hx-get="/api/cloud/files" hx-trigger="every 60s" hx-swap="innerHTML">
-        <div class="text-center text-secondary text-sm py-8">Ładowanie...</div>
+      <div x-data="cloudPanel()" x-init="load()">
+        <div x-show="loading" class="text-center text-secondary text-sm py-8">Ładowanie...</div>
+        <div x-show="error" class="text-center text-danger text-sm py-4" x-text="error"></div>
+        <template x-for="f in files" :key="f.name">
+          <div class="flex items-center gap-3 py-2 border-b border-border-custom last:border-0">
+            <span x-text="f.is_dir ? '📁' : '📄'" class="shrink-0"></span>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm truncate" x-text="f.name"></div>
+              <div class="text-xs text-secondary" x-text="f.is_dir ? 'folder' : formatSize(f.size)"></div>
+            </div>
+          </div>
+        </template>
+        <div x-show="!loading && !error && files.length === 0" class="text-center text-secondary text-sm py-8">Cloudilla pusta lub niedostępna</div>
       </div>
     </div>
 
-    {# GitHub #}
+    {# GitHub — Alpine.js fetch z auth #}
     <div class="bg-surface border border-border-custom rounded-xl p-5">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-bold flex items-center gap-2">
@@ -63,11 +75,60 @@
           Moje Projekty
         </h2>
       </div>
-      <div id="github-projects"
-           hx-get="/api/github/projects" hx-trigger="every 120s" hx-swap="innerHTML">
-        <div class="text-center text-secondary text-sm py-8">Ładowanie...</div>
+      <div x-data="githubPanel()" x-init="load()">
+        <div x-show="loading" class="text-center text-secondary text-sm py-8">Ładowanie...</div>
+        <div x-show="error" class="text-center text-warning text-sm py-4" x-text="error"></div>
+        <template x-for="repo in repos" :key="repo.name">
+          <div class="flex items-center gap-3 py-2.5 border-b border-border-custom last:border-0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary shrink-0"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium truncate" x-text="repo.name"></div>
+              <div class="text-xs text-secondary truncate" x-text="repo.description || 'Brak opisu'"></div>
+            </div>
+            <div class="text-xs text-secondary shrink-0" x-text="repo.pushedAt ? new Date(repo.pushedAt).toLocaleDateString('pl-PL') : ''"></div>
+          </div>
+        </template>
+        <div x-show="!loading && !error && repos.length === 0" class="text-center text-secondary text-sm py-8">Brak repozytoriów lub gh CLI offline</div>
       </div>
     </div>
+
   </div>
 </div>
+<script>
+function cloudPanel() {
+  return { files: [], loading: true, error: null,
+    async load() {
+      this.loading = true; this.error = null;
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const r = await fetch('/api/cloud/files', { headers: { Authorization: 'Bearer ' + token } });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        this.files = d.entries || [];
+      } catch(e) { this.error = 'Brak dostępu do Cloudilli'; }
+      finally { this.loading = false; }
+    },
+    formatSize(b) {
+      if (!b) return '0 B'; const u = ['B','KB','MB','GB']; let i = 0, s = b;
+      while (s >= 1024 && i < u.length-1) { s /= 1024; i++; }
+      return s.toFixed(1) + ' ' + u[i];
+    }
+  };
+}
+function githubPanel() {
+  return { repos: [], loading: true, error: null,
+    async load() {
+      this.loading = true; this.error = null;
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const r = await fetch('/api/github/projects', { headers: { Authorization: 'Bearer ' + token } });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        this.repos = d.repos || [];
+      } catch(e) { this.error = 'GitHub niedostępny (gh CLI)'; }
+      finally { this.loading = false; }
+    }
+  };
+}
+</script>
 {% endblock %}

@@ -86,6 +86,41 @@
     </template>
   </div>
 </div>
+
+<!-- Obsidian Vault Browser -->
+<div x-data="vaultBrowser()" x-init="load('')" class="bg-surface border border-border-custom rounded-xl p-5">
+  <h3 class="font-bold mb-4">📔 Obsidian Vault</h3>
+  <div class="flex gap-2 mb-3 flex-wrap">
+    <button @click="load('')" class="text-xs px-2 py-1 rounded bg-surface-hover text-secondary hover:text-primary">⬡ Root</button>
+    <template x-for="(seg, i) in breadcrumb" :key="i">
+      <button @click="load(seg.path)" class="text-xs px-2 py-1 rounded bg-surface-hover text-secondary hover:text-primary" x-text="'/ ' + seg.name"></button>
+    </template>
+  </div>
+  <div class="grid grid-cols-2 gap-2">
+    <template x-for="f in folders" :key="f.path">
+      <div @click="load(f.path)" class="flex items-center gap-2 p-2 rounded-lg border border-border-custom hover:border-accent/50 cursor-pointer transition-colors">
+        <span class="text-warning">📁</span>
+        <span class="text-sm truncate" x-text="f.name"></span>
+      </div>
+    </template>
+    <template x-for="n in notes" :key="n.path">
+      <div @click="readNote(n.path)" class="flex items-center gap-2 p-2 rounded-lg border border-border-custom hover:border-accent/50 cursor-pointer transition-colors">
+        <span class="text-accent">📄</span>
+        <span class="text-sm truncate" x-text="n.name"></span>
+      </div>
+    </template>
+    <div x-show="folders.length === 0 && notes.length === 0 && loaded" class="col-span-2 text-center text-secondary text-sm py-4">Vault niedostępny lub pusty</div>
+    <div x-show="!loaded" class="col-span-2 text-center text-secondary text-sm py-4">Ładowanie...</div>
+  </div>
+  <div x-show="activeNote" class="mt-4 border-t border-border-custom pt-4">
+    <div class="font-bold text-sm mb-2" x-text="activeNote?.name"></div>
+    <textarea x-model="activeNote.content" rows="12"
+      class="w-full bg-page border border-border-custom rounded-lg p-3 text-xs font-mono resize-none focus:border-accent outline-none"></textarea>
+    <button @click="saveNote()" class="mt-2 bg-accent text-page px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-accent/90">Zapisz</button>
+    <span x-show="noteSaveMsg" x-text="noteSaveMsg" class="text-xs ml-2"
+          :class="noteSaveMsg.includes('✓') ? 'text-success' : 'text-danger'"></span>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -176,6 +211,63 @@ function personaBrain() {
         }
       } catch {
         this.saveStatus = '✗ Błąd sieci';
+      }
+    }
+  };
+}
+
+function vaultBrowser() {
+  return {
+    folders: [], notes: [], breadcrumb: [], activeNote: null,
+    currentPath: '', loaded: false, noteSaveMsg: '',
+    async load(path) {
+      this.currentPath = path;
+      this.activeNote = null;
+      this.loaded = false;
+      this.noteSaveMsg = '';
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const r = await fetch('/api/obsidian/notes?path=' + encodeURIComponent(path), {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const d = await r.json();
+        this.folders = d.folders || [];
+        this.notes = d.notes || [];
+        if (path) {
+          const parts = path.split('/').filter(Boolean);
+          this.breadcrumb = parts.map((p, i) => ({ name: p, path: parts.slice(0, i+1).join('/') }));
+        } else { this.breadcrumb = []; }
+      } catch { }
+      this.loaded = true;
+    },
+    async readNote(path) {
+      this.noteSaveMsg = '';
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const r = await fetch('/api/obsidian/notes/read?path=' + encodeURIComponent(path), {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        this.activeNote = await r.json();
+      } catch { }
+    },
+    async saveNote() {
+      if (!this.activeNote) return;
+      this.noteSaveMsg = 'Zapisywanie...';
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const r = await fetch('/api/obsidian/notes/write', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ path: this.activeNote.path, content: this.activeNote.content }),
+        });
+        if (r.ok) {
+          this.noteSaveMsg = '✓ Zapisano';
+          setTimeout(() => { this.noteSaveMsg = ''; }, 3000);
+        } else {
+          this.noteSaveMsg = '✗ Błąd';
+        }
+      } catch {
+        this.noteSaveMsg = '✗ Błąd sieci';
       }
     }
   };

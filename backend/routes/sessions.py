@@ -8,18 +8,93 @@ import sqlite3
 from datetime import UTC, datetime
 from typing import Any, Optional
 
+import httpx
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from backend.core.models import User
 from backend.core.security import get_current_user
 
-router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
+async def _generate_llm_response(prompt: str, model: str | None = None) -> str:
+    """Call Ollama (primary) → Gemini → OpenAI → fallback."""
+    # 1. OLLAMA (primary — lokalny RPi)
+    ollama_url = os.getenv("OLLAMA_API_URL", "http://192.168.1.109:11434")
+    ollama_model = model or os.getenv("OLLAMA_MODEL", "deepseek-r1:1.5b")
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            r = await client.post(
+                f"{ollama_url}/api/generate",
+                json={"model": ollama_model, "prompt": prompt, "stream": False},
+            )
+            if r.status_code == 200:
+                text = r.json().get("response", "").strip()
+                if text:
+                    return text
+    except Exception:
+        pass
+
+    # 2. GEMINI (fallback)
+    try:
+        from google import genai
+        api_key = os.getenv("GEMINI_API_KEY", "")
+        if api_key:
+            client = genai.Client(api_key=api_key)
+            resp = client.models.generate_content(
+                model=model or "gemini-2.0-flash", contents=prompt
+            )
+            return resp.text
+    except Exception:
+        pass
+
+    # 3. Ostateczny fallback
+    return "[Brak połączenia z LLM. Sprawdź OLLAMA_API_URL w .env]"
+
+
+router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 HERMES_STATE_DB = os.path.expanduser("~/.hermes/state.db")
+LOCAL_DB = pathlib.Path(__file__).parent.parent.parent / "villanyan-sessions.db"
+
+
+def _get_or_create_db() -> pathlib.Path:
+    """Return path to sessions DB — Hermes state.db if exists, else local fallback."""
+    hermes = pathlib.Path(HERMES_STATE_DB)
+    if hermes.exists():
+        return hermes
+    _ensure_local_db(LOCAL_DB)
+    return LOCAL_DB
+
+
+def _ensure_local_db(path: pathlib.Path) -> None:
+    """Create minimal sessions schema if it doesn't exist."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(path))
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL DEFAULT '',
+                started_at TEXT NOT NULL,
+                source TEXT DEFAULT 'villanyan'
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
+                content TEXT NOT NULL,
+                timestamp TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _get_db_path() -> pathlib.Path:
+    """Legacy wrapper — raises if state.db missing. Kept for backward compat."""
     p = pathlib.Path(HERMES_STATE_DB)
     if not p.exists():
         raise HTTPException(status_code=404, detail="Hermes state.db not found")
@@ -31,7 +106,7 @@ def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
 
 
 def _query_sessions(page: int = 1, page_size: int = 50) -> dict:
-    db_path = _get_db_path()
+    db_path = _get_or_create_db()
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     try:
@@ -51,7 +126,7 @@ def _query_sessions(page: int = 1, page_size: int = 50) -> dict:
 
 
 def _query_messages(session_id: str, limit: int = 100, before_id: Optional[int] = None) -> list[dict]:
-    db_path = _get_db_path()
+    db_path = _get_or_create_db()
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     try:
@@ -96,16 +171,23 @@ async def create_session(
     body: SessionCreate,
     user: User = Depends(get_current_user),
 ):
-    """Create a new session in Hermes state.db."""
-    db_path = _get_db_path()
+    """Create a new session in Hermes state.db (or local fallback)."""
+    db_path = _get_or_create_db()
     conn = sqlite3.connect(str(db_path))
     try:
         now = datetime.now(UTC).isoformat()
         title = body.title or f"Session {now[:19]}"
-        cur = conn.execute(
-            "INSERT INTO sessions (title, started_at, source) VALUES (?, ?, 'villanyan')",
-            (title, now),
-        )
+        try:
+            cur = conn.execute(
+                "INSERT INTO sessions (title, started_at, source) VALUES (?, ?, 'villanyan')",
+                (title, now),
+            )
+        except sqlite3.OperationalError:
+            # Fallback: bez kolumny source (stara schema Hermesa)
+            cur = conn.execute(
+                "INSERT INTO sessions (title, started_at) VALUES (?, ?)",
+                (title, now),
+            )
         conn.commit()
         session_id = cur.lastrowid
         return {"id": session_id, "title": title, "started_at": now}
@@ -138,28 +220,50 @@ async def send_message(
     body: MessageSend,
     user: User = Depends(get_current_user),
 ):
-    """Send a message to a session (stored in state.db)."""
-    db_path = _get_db_path()
+    """Send a message to a session — stores user msg and generates LLM reply."""
+    db_path = _get_or_create_db()
     conn = sqlite3.connect(str(db_path))
     try:
         now = datetime.now(UTC).isoformat()
         cur = conn.execute(
             "INSERT INTO messages (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
-            (session_id, body.role, body.content, now),
+            (session_id, "user", body.content, now),
         )
         conn.execute(
             "UPDATE sessions SET started_at = ? WHERE id = ?",
             (now, session_id),
         )
         conn.commit()
-        return {
-            "id": cur.lastrowid,
-            "session_id": session_id,
-            "role": body.role,
-            "content": body.content,
-            "timestamp": now,
-        }
+        user_msg_id = cur.lastrowid
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Error: {exc}")
     finally:
         conn.close()
+
+    # Generate LLM response (async, outside the first transaction)
+    llm_reply = await _generate_llm_response(body.content)
+
+    # Save assistant reply
+    conn2 = sqlite3.connect(str(db_path))
+    try:
+        now2 = datetime.now(UTC).isoformat()
+        cur2 = conn2.execute(
+            "INSERT INTO messages (session_id, role, content, timestamp) VALUES (?,?,?,?)",
+            (session_id, "assistant", llm_reply, now2),
+        )
+        conn2.execute(
+            "UPDATE sessions SET started_at = ? WHERE id = ?", (now2, session_id)
+        )
+        conn2.commit()
+        return {
+            "id": cur2.lastrowid,
+            "session_id": session_id,
+            "role": "assistant",
+            "content": llm_reply,
+            "timestamp": now2,
+            "user_message_id": user_msg_id,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error saving reply: {exc}")
+    finally:
+        conn2.close()

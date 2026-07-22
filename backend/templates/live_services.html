@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Status Usług LIVE — Villanyan-Agent{% endblock %}
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="{ open: true }">
   <h2 class="text-2xl font-bold">Status Usług LIVE</h2>
 
   {# Docker #}
-  <div x-data="{ open: false }" class="bg-surface border border-border-custom rounded-xl p-5">
+  <div x-data="{ open: true }" class="bg-surface border border-border-custom rounded-xl p-5">
     <button @click="open = !open" class="flex items-center justify-between w-full text-left">
       <h3 class="text-lg font-bold">Kontenery Docker</h3>
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -43,17 +43,39 @@
     </div>
   </div>
 
-  {# Koszty #}
-  <div x-data="{ open: false }" class="bg-surface border border-border-custom rounded-xl p-5">
+  {# Koszty (Alpine.js fetch, nie HTMX) #}
+  <div x-data="costPanel()" x-init="load()" class="bg-surface border border-border-custom rounded-xl p-5">
     <button @click="open = !open" class="flex items-center justify-between w-full text-left">
       <h3 class="text-lg font-bold">Koszty API</h3>
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            :class="open ? 'rotate-180' : ''" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
-    <div x-show="open" x-transition class="mt-4"
-         hx-get="/api/costs" hx-trigger="load" hx-swap="innerHTML">
-      <div class="text-center text-secondary py-4">Ładowanie...</div>
+    <div x-show="open" x-transition class="mt-4">
+      <template x-for="r in rates" :key="r.id">
+        <div class="flex justify-between py-2 border-b border-border-custom text-sm">
+          <span x-text="r.model" class="font-mono text-accent"></span>
+          <span x-text="'$' + r.price_in + ' / $' + r.price_out" class="text-secondary"></span>
+        </div>
+      </template>
+      <div x-show="rates.length === 0 && loaded" class="text-center text-secondary py-4 text-sm">Brak skonfigurowanych stawek</div>
+      <div x-show="!loaded" class="text-center text-secondary py-4 text-sm">Ładowanie...</div>
     </div>
   </div>
 </div>
+<script>
+function costPanel() {
+  return { open: true, rates: [], loaded: false,
+    async load() {
+      try {
+        const r = await fetch('/api/costs', {
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('villanyan_token') }
+        });
+        const d = await r.json();
+        this.rates = d.items || [];
+      } catch { this.rates = []; }
+      this.loaded = true;
+    }
+  };
+}
+</script>
 {% endblock %}

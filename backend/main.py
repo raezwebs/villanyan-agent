@@ -75,6 +75,7 @@ def create_app() -> FastAPI:
     from backend.routes import cloud, github, cron, reminders, network, costs
     from backend.routes import notifications, memory, compat
     from backend.routes import pages  # HTML page routes (frontend)
+    from backend.routes import settings as settings_route
 
     routers = [
         auth.router,
@@ -93,13 +94,16 @@ def create_app() -> FastAPI:
         memory.router,
         compat.router,
         pages.router,
+        settings_route.router,
     ]
     for r in routers:
         app.include_router(r)
 
     # Make partial routes accessible via /partials directly
-    from backend.routes.system import _partial_router
-    app.include_router(_partial_router, prefix="/partials")
+    from backend.routes.system import _partial_router as _sys_partial_router
+    from backend.routes.obsidian import _partial_router as _obs_partial_router
+    app.include_router(_sys_partial_router, prefix="/partials")
+    app.include_router(_obs_partial_router, prefix="/partials")
 
     # ── Health check ──────────────────────────────────────────────────
     from fastapi import APIRouter

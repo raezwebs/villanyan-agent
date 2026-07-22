@@ -85,6 +85,7 @@
             <span class="w-2.5 h-2.5 rounded-full bg-success animate-pulse"></span>
             SYSTEM JEST W PEŁNI FUNKCJONALNY
           </div>
+          <span id="ollama-topbar" class="text-xs font-mono hidden md:inline-block mr-4"></span>
           <a href="/settings" class="p-2 text-secondary hover:text-primary transition-colors rounded-lg hover:bg-surface-hover">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
           </a>
@@ -100,13 +101,20 @@
 
   {# ═══════════════════════════════════════════════════════════════════ SCRIPTS ═══ #}
   <script>
-    // HTMX — dołącz token do każdego żądania
-    document.addEventListener('DOMContentLoaded', function() {
+    // HTMX auth — inject token przed każdym requestem
+    document.addEventListener('htmx:configRequest', function(evt) {
       const token = localStorage.getItem('villanyan_token');
       if (token) {
-        htmx.config.defaultHeaders = {
-          'Authorization': 'Bearer ' + token
-        };
+        evt.detail.headers['Authorization'] = 'Bearer ' + token;
+      }
+    });
+
+    // HTMX error handling — 401 → redirect to login
+    document.addEventListener('htmx:responseError', function(evt) {
+      if (evt.detail.xhr.status === 401) {
+        localStorage.removeItem('villanyan_token');
+        localStorage.removeItem('villanyan_refresh_token');
+        window.location.href = '/login';
       }
     });
 
@@ -123,6 +131,29 @@
         window.location.href = '/login';
       }
     })();
+
+    // Ollama status in topbar
+    async function checkOllama() {
+      try {
+        const token = localStorage.getItem('villanyan_token');
+        if (!token) return;
+        const r = await fetch('/api/hermes/ollama-status', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (!r.ok) return;
+        const d = await r.json();
+        const el = document.getElementById('ollama-topbar');
+        if (el) {
+          el.innerHTML = d.online
+            ? '<span class="text-success">⬡ HERMES</span>'
+            : '<span class="text-danger">⬡ OFFLINE</span>';
+        }
+      } catch {}
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      checkOllama();
+      setInterval(checkOllama, 30000);
+    });
 
     // Logout
     document.getElementById('logout-btn')?.addEventListener('click', () => {

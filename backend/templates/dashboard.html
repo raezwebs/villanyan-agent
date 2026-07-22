@@ -10,13 +10,33 @@
   </div>
 
   {# Welcome + przypomnienia #}
-  <div>
-    <h1 class="text-2xl font-bold text-primary mb-1">Witaj Użytkowniku!</h1>
-    <div class="flex items-center gap-4 text-sm text-secondary">
-      <span>📌 <span class="font-medium text-accent">0</span> aktywnych przypomnień</span>
-      <span>✅ <span class="font-medium text-success">0</span> zrealizowanych</span>
+  <div x-data="dashboardWelcome()">
+      <h1 class="text-2xl font-bold text-primary mb-1" x-text="'Witaj, ' + (username || 'Użytkowniku') + '!'"></h1>
+      <div class="flex items-center gap-4 text-sm text-secondary">
+        <span>📌 <span class="font-medium text-accent" x-text="pendingReminders">0</span> aktywnych przypomnień</span>
+        <span>✅ <span class="font-medium text-success" x-text="doneReminders">0</span> zrealizowanych</span>
+      </div>
     </div>
-  </div>
+    <script>
+    function dashboardWelcome() {
+      return {
+        username: 'Użytkowniku',
+        pendingReminders: 0,
+        doneReminders: 0,
+        init() {
+          const token = localStorage.getItem('villanyan_token');
+          fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(r => r.json()).then(d => { this.username = d.username || 'Użytkowniku'; }).catch(() => {});
+          fetch('/api/reminders', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(r => r.json()).then(d => {
+              const items = d.items || [];
+              this.pendingReminders = items.filter(r => !r.done).length;
+              this.doneReminders = items.filter(r => r.done).length;
+            }).catch(() => {});
+        }
+      };
+    }
+    </script>
 
   {# Grid #}
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

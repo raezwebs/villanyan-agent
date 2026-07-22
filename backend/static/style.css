@@ -337,3 +337,28 @@ td { padding: 0.75rem 1rem; }
 .inline-flex { display: inline-flex; }
 .overflow-x-auto { overflow-x: auto; }
 .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+
+/* Font & antialiasing */
+.font-sans { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.antialiased { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* Transform utility */
+.transform { transform: none; }
+
+/* Size utilities */
+.h-2 { height: 0.5rem; }
+.w-2 { width: 0.5rem; }
+.h-2\.5 { height: 0.625rem; }
+.w-2\.5 { width: 0.625rem; }
+
+/* Space */
+.space-y-0\.5 > * + * { margin-top: 0.125rem; }
+
+/* Specific text sizes/colors */
+.text-\[10px\] { font-size: 10px; }
+.text-\[\#f5a623\] { color: #f5a623; }
+
+/* .hidden.md\:flex style — manually matches display:flex on md+ */
+@media (min-width: 768px) {
+  .hidden\.md\\:flex { display: flex; }
+}

@@ -1,31 +1,183 @@
 {% extends "base.html" %}
 {% block title %}Ustawienia — Villanyan-Agent{% endblock %}
 {% block content %}
-<div class="max-w-2xl space-y-6">
+<div class="max-w-2xl space-y-6" x-data="settingsApp()">
   <h2 class="text-2xl font-bold">Ustawienia</h2>
 
-  {# Język #}
+  <!-- Język interfejsu -->
   <div class="bg-surface border border-border-custom rounded-xl p-5">
     <h3 class="font-bold mb-4">Język interfejsu</h3>
     <div class="space-y-3">
-      <label class="flex items-center gap-3 p-3 rounded-xl border border-accent bg-accent/5 cursor-pointer">
-        <input type="radio" name="lang" value="pl" checked class="accent-accent w-5 h-5" />
+      <label class="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
+             :class="lang === 'pl' ? 'border border-accent bg-accent/5' : 'border border-border-custom hover:border-accent/50'">
+        <input type="radio" name="lang" value="pl" x-model="lang" @change="saveLang()" class="accent-accent w-5 h-5" />
         <div><div class="font-bold">🇵🇱 Polski</div><div class="text-xs text-secondary">Język domyślny</div></div>
       </label>
-      <label class="flex items-center gap-3 p-3 rounded-xl border border-border-custom cursor-pointer hover:border-accent/50">
-        <input type="radio" name="lang" value="en" class="accent-accent w-5 h-5" />
+      <label class="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
+             :class="lang === 'en' ? 'border border-accent bg-accent/5' : 'border border-border-custom hover:border-accent/50'">
+        <input type="radio" name="lang" value="en" x-model="lang" @change="saveLang()" class="accent-accent w-5 h-5" />
         <div><div class="font-bold">🇬🇧 English</div><div class="text-xs text-secondary">Switch interface to English</div></div>
       </label>
     </div>
+    <div x-show="langSaved" x-transition class="text-xs text-success mt-2 flex items-center gap-1">
+      <span>✓ Język zapisany (odśwież stronę)</span>
+    </div>
   </div>
 
-  {# Model #}
+  <!-- Główny Model AI -->
   <div class="bg-surface border border-border-custom rounded-xl p-5">
     <h3 class="font-bold mb-4">Główny Model AI</h3>
-    <select class="w-full bg-page border border-border-custom rounded-lg p-3 text-primary focus:border-accent outline-none">
-      <option>deepseek-v4-flash</option>
-      <option>deepseek-v4-pro</option>
+    <select x-model="selectedModel" @change="saveModel()"
+            class="w-full bg-page border border-border-custom rounded-lg p-3 text-primary focus:border-accent outline-none">
+      <option value="deepseek-v4-flash">deepseek-v4-flash (szybki, tani)</option>
+      <option value="deepseek-v4-pro">deepseek-v4-pro (dokładny, wolny)</option>
+      <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+      <option value="gpt-4o-mini">GPT-4o Mini</option>
     </select>
+    <div x-show="modelSaved" x-transition class="text-xs text-success mt-2 flex items-center gap-1">
+      <span>✓ Model zapisany</span>
+    </div>
+  </div>
+
+  <!-- API Keys -->
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <h3 class="font-bold mb-4">Klucze API</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs text-secondary mb-1">Gemini API Key</label>
+        <input type="password" x-model="geminiKey" @change="saveGeminiKey()"
+               placeholder="Wpisz klucz lub zostaw puste"
+               class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm text-primary focus:border-accent outline-none" />
+        <div x-show="geminiSaved" x-transition class="text-xs text-success mt-1">✓ Zapisano</div>
+      </div>
+      <div>
+        <label class="block text-xs text-secondary mb-1">OpenAI API Key</label>
+        <input type="password" x-model="openaiKey" @change="saveOpenAIKey()"
+               placeholder="Wpisz klucz lub zostaw puste"
+               class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm text-primary focus:border-accent outline-none" />
+        <div x-show="openaiSaved" x-transition class="text-xs text-success mt-1">✓ Zapisano</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Informacje o systemie -->
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <h3 class="font-bold mb-4">Informacje o systemie</h3>
+    <div class="space-y-2 text-sm">
+      <div class="flex justify-between py-1 border-b border-border-custom">
+        <span class="text-secondary">Wersja aplikacji</span>
+        <span class="font-mono font-bold" x-text="appVersion"></span>
+      </div>
+      <div class="flex justify-between py-1 border-b border-border-custom">
+        <span class="text-secondary">Python</span>
+        <span class="font-mono" x-text="pythonVersion"></span>
+      </div>
+      <div class="flex justify-between py-1 border-b border-border-custom">
+        <span class="text-secondary">Baza danych</span>
+        <span class="font-mono text-xs">SQLite (WAL)</span>
+      </div>
+      <div class="flex justify-between py-1 border-b border-border-custom">
+        <span class="text-secondary">Port serwera</span>
+        <span class="font-mono">7890</span>
+      </div>
+      <div class="flex justify-between py-1">
+        <span class="text-secondary">Status API</span>
+        <span class="inline-flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-success"></span>
+          <span class="text-success font-bold">Online</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Akcje -->
+  <div class="bg-surface border border-danger/30 rounded-xl p-5">
+    <h3 class="font-bold mb-4 text-danger">Strefa niebezpieczna</h3>
+    <div class="space-y-3">
+      <button @click="clearCache()"
+              class="w-full border border-border-custom bg-surface-hover/50 px-4 py-3 rounded-lg text-sm font-bold hover:bg-surface-hover transition-colors text-left flex items-center justify-between">
+        <span>Wyczyść cache lokalny</span>
+        <span class="text-xs text-secondary">usuwa localStorage</span>
+      </button>
+      <button @click="logout()"
+              class="w-full border border-danger/30 bg-danger/10 px-4 py-3 rounded-lg text-sm font-bold hover:bg-danger/20 transition-colors text-left flex items-center justify-between">
+        <span>Wyloguj się</span>
+        <span class="text-xs text-danger">usuwa token i przekierowuje do loginu</span>
+      </button>
+    </div>
+    <div x-show="cacheCleared" x-transition class="text-xs text-success mt-3">✓ Cache wyczyszczony</div>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+function settingsApp() {
+  return {
+    lang: localStorage.getItem('villanyan_lang') || 'pl',
+    langSaved: false,
+    selectedModel: localStorage.getItem('villanyan_model') || 'deepseek-v4-flash',
+    modelSaved: false,
+    geminiKey: '',
+    openaiKey: '',
+    geminiSaved: false,
+    openaiSaved: false,
+    appVersion: '3.0.0',
+    pythonVersion: '',
+    cacheCleared: false,
+
+    init() {
+      // Fetch python version from health
+      fetch('/api/health')
+        .then(r => r.json())
+        .then(d => { this.appVersion = d.version || this.appVersion; })
+        .catch(() => {});
+      this.pythonVersion = '3.13.5';
+    },
+
+    saveLang() {
+      localStorage.setItem('villanyan_lang', this.lang);
+      this.langSaved = true;
+      setTimeout(() => { this.langSaved = false; location.reload(); }, 800);
+    },
+
+    saveModel() {
+      localStorage.setItem('villanyan_model', this.selectedModel);
+      this.modelSaved = true;
+      setTimeout(() => { this.modelSaved = false; }, 2000);
+    },
+
+    saveGeminiKey() {
+      localStorage.setItem('villanyan_gemini_key', this.geminiKey);
+      this.geminiSaved = true;
+      setTimeout(() => { this.geminiSaved = false; }, 2000);
+    },
+
+    saveOpenAIKey() {
+      localStorage.setItem('villanyan_openai_key', this.openaiKey);
+      this.openaiSaved = true;
+      setTimeout(() => { this.openaiSaved = false; }, 2000);
+    },
+
+    clearCache() {
+      localStorage.clear();
+      this.cacheCleared = true;
+      setTimeout(() => { location.reload(); }, 1000);
+    },
+
+    logout() {
+      const rt = localStorage.getItem('villanyan_refresh_token');
+      if (rt) {
+        fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: rt })
+        }).catch(() => {});
+      }
+      localStorage.removeItem('villanyan_token');
+      localStorage.removeItem('villanyan_refresh_token');
+      window.location.href = '/login';
+    }
+  };
+}
+</script>
 {% endblock %}

@@ -1,12 +1,184 @@
 {% extends "base.html" %}
 {% block title %}Mózg Persony — Villanyan-Agent{% endblock %}
 {% block content %}
-<div class="space-y-6">
-  <h2 class="text-2xl font-bold">Mózg Persony</h2>
-  <p class="text-sm text-secondary">Pliki determinujące osobowość i wiedzę agenta Hermes</p>
+<div class="space-y-6" x-data="personaBrain()">
+  <div class="flex justify-between items-center">
+    <div>
+      <h2 class="text-2xl font-bold">Mózg Persony</h2>
+      <p class="text-sm text-secondary">Pliki determinujące osobowość i wiedzę agenta Hermes</p>
+    </div>
+    <button @click="refreshFiles()" class="bg-surface border border-border-custom px-4 py-2 rounded-lg text-sm font-bold hover:bg-surface-hover transition-colors flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Odśwież
+    </button>
+  </div>
 
-  <div id="persona-files" hx-get="/api/hermes/agent" hx-trigger="load, every 60s" hx-swap="innerHTML">
-    <div class="text-center text-secondary py-8">Ładowanie...</div>
+  <!-- Agent info card -->
+  <div class="bg-surface border border-border-custom rounded-xl p-5" x-show="agentInfo.name">
+    <div class="flex items-center gap-4 mb-4">
+      <div class="w-12 h-12 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xl font-black">⬡</div>
+      <div>
+        <div class="font-bold text-lg" x-text="agentInfo.name || 'Hermes Agent'"></div>
+        <div class="text-xs text-secondary" x-text="'Home: ' + (agentInfo.home || '~/.hermes')"></div>
+      </div>
+    </div>
+    <div class="text-xs text-secondary">
+      <span class="inline-flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-success"></span>
+        <span x-text="agentInfo.config_exists ? 'Konfiguracja obecna' : 'Brak pliku config.yaml'"></span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Memory files list -->
+  <div class="bg-surface border border-border-custom rounded-xl overflow-hidden">
+    <div class="px-5 py-4 border-b border-border-custom flex items-center justify-between">
+      <h3 class="font-bold">Pliki Persony</h3>
+      <span class="text-xs text-secondary" x-text="memoryFiles.length + ' plików'"></span>
+    </div>
+
+    <div x-show="!memoryFiles.length && !loading" class="text-center py-8 text-secondary text-sm">
+      Brak plików pamięci agenta
+    </div>
+
+    <div x-show="loading" class="text-center py-8 text-secondary text-sm">
+      <span class="inline-flex items-center gap-2">
+        <span class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin"></span>
+        Ładowanie...
+      </span>
+    </div>
+
+    <template x-for="file in memoryFiles" :key="file.name">
+      <div class="border-b border-border-custom last:border-b-0">
+        <div class="flex items-center justify-between px-5 py-3 hover:bg-surface-hover cursor-pointer transition-colors"
+             @click="selectFile(file.name)">
+          <div class="flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <div>
+              <div class="text-sm font-bold" x-text="file.name"></div>
+              <div class="text-xs text-secondary" x-text="(file.size || 0) + 'B'"></div>
+            </div>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+
+        <!-- Expanded editor -->
+        <div x-show="selectedFile === file.name" x-transition class="px-5 pb-4">
+          <div class="bg-page border border-border-custom rounded-lg p-3 mb-3">
+            <textarea x-model="editContent" class="w-full bg-transparent text-xs font-mono text-primary resize-none outline-none" rows="12"
+                      placeholder="Zawartość pliku..."></textarea>
+          </div>
+          <div class="flex gap-2">
+            <button @click="saveFile(file.name)"
+                    class="bg-accent text-page px-4 py-2 rounded-lg text-sm font-bold hover:bg-accent/90 transition-colors flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Zapisz
+            </button>
+            <button @click="cancelEdit()"
+                    class="bg-surface border border-border-custom px-4 py-2 rounded-lg text-sm hover:bg-surface-hover transition-colors">
+              Anuluj
+            </button>
+            <span x-show="saveStatus" x-text="saveStatus" class="text-xs flex items-center ml-2"
+                  :class="saveStatus.includes('✓') ? 'text-success' : 'text-danger'"></span>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+function personaBrain() {
+  return {
+    agentInfo: {},
+    memoryFiles: [],
+    selectedFile: null,
+    editContent: '',
+    saveStatus: '',
+    loading: true,
+
+    init() {
+      this.refreshFiles();
+    },
+
+    async refreshFiles() {
+      this.loading = true;
+      this.saveStatus = '';
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        // Get agent info
+        const infoRes = await fetch('/api/hermes/agent', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (infoRes.ok) {
+          this.agentInfo = await infoRes.json();
+        }
+
+        // Get memory files from compat endpoint (lists .md files)
+        const filesRes = await fetch('/api/hermes/memory', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (filesRes.ok) {
+          const data = await filesRes.json();
+          this.memoryFiles = data.files || [];
+        }
+      } catch(e) {
+        console.error('Error loading persona:', e);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async selectFile(name) {
+      if (this.selectedFile === name) {
+        this.selectedFile = null;
+        return;
+      }
+      this.selectedFile = name;
+      this.saveStatus = '';
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const res = await fetch('/api/hermes/agent-memory/' + encodeURIComponent(name), {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          this.editContent = data.content || '';
+        } else {
+          this.editContent = '# Nowy plik\n';
+        }
+      } catch {
+        this.editContent = '# Błąd ładowania\n';
+      }
+    },
+
+    cancelEdit() {
+      this.selectedFile = null;
+      this.editContent = '';
+      this.saveStatus = '';
+    },
+
+    async saveFile(name) {
+      this.saveStatus = 'Zapisywanie...';
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const res = await fetch('/api/hermes/agent-memory/' + encodeURIComponent(name), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ content: this.editContent })
+        });
+        if (res.ok) {
+          this.saveStatus = '✓ Zapisano';
+          setTimeout(() => { this.saveStatus = ''; }, 3000);
+        } else {
+          this.saveStatus = '✗ Błąd zapisu';
+        }
+      } catch {
+        this.saveStatus = '✗ Błąd sieci';
+      }
+    }
+  };
+}
+</script>
 {% endblock %}

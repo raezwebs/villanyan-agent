@@ -41,7 +41,7 @@
 async function ctrlContainer(id, action) {
   try {
     await fetch('/api/docker/containers/' + id + '/' + action, { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') } });
-    htmx.trigger('#docker-container-list', 'load');
+    location.reload();
   } catch {}
 }
 </script>

@@ -1,64 +1,137 @@
 {% extends "base.html" %}
 {% block title %}Przypomnienia — Villanyan-Agent{% endblock %}
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6" x-data="remindersApp()">
   <div class="flex justify-between items-center">
-    <h2 class="text-2xl font-bold">Przypomnienia</h2>
-    <div class="flex gap-3">
-      <button onclick="showAddReminder()" class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors">+ Dodaj</button>
+    <div>
+      <h2 class="text-2xl font-bold">Przypomnienia</h2>
+      <p class="text-sm text-secondary" x-text="'Łącznie: ' + totalReminders + ' | Do zrobienia: ' + pendingReminders"></p>
     </div>
+    <button @click="showForm = !showForm" class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span x-text="showForm ? 'Anuluj' : 'Dodaj przypomnienie'"></span>
+    </button>
   </div>
 
-  {# Statystyki #}
-  <div class="grid grid-cols-2 gap-4" id="reminder-stats"
-       hx-get="/partials/reminder-stats" hx-trigger="load, every 30s" hx-swap="innerHTML">
-  </div>
-
-  {# Formularz #}
-  <div id="reminder-form" class="bg-surface border border-accent rounded-xl p-5 hidden">
+  <!-- Formularz dodawania -->
+  <div x-show="showForm" x-transition class="bg-surface border border-accent rounded-xl p-5">
     <h3 class="font-bold mb-4">Nowe Przypomnienie</h3>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
       <div class="md:col-span-2">
         <label class="block text-xs text-secondary mb-1">Treść</label>
-        <input type="text" id="reminder-text" class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm focus:border-accent outline-none" />
+        <input type="text" x-model="newText" placeholder="Kup mleko, zapłacić rachunek..."
+               class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm focus:border-accent outline-none" />
       </div>
       <div>
-        <label class="block text-xs text-secondary mb-1">Termin</label>
-        <input type="text" id="reminder-due" class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm focus:border-accent outline-none" placeholder="Jutro o 15:00" />
+        <label class="block text-xs text-secondary mb-1">Priorytet</label>
+        <select x-model="newPriority"
+                class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm focus:border-accent outline-none">
+          <option value="0">🟢 Niski</option>
+          <option value="1">🟡 Średni</option>
+          <option value="2">🔴 Wysoki</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-secondary mb-1">Termin (opcjonalnie)</label>
+        <input type="date" x-model="newDue"
+               class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm focus:border-accent outline-none" />
       </div>
     </div>
-    <button onclick="saveReminder()" class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors">Dodaj</button>
+    <button @click="saveReminder()"
+            :disabled="!newText.trim()"
+            class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors disabled:opacity-50">
+      Dodaj
+    </button>
+    <span x-show="saveMsg" x-text="saveMsg" class="text-sm ml-3"
+          :class="saveMsg.includes('✓') ? 'text-success' : 'text-danger'"></span>
   </div>
 
-  {# Lista #}
-  <div id="reminder-list" hx-get="/partials/reminder-list" hx-trigger="load, every 30s" hx-swap="innerHTML">
+  <!-- Statystyki -->
+  <div class="grid grid-cols-3 gap-4" id="reminder-stats"
+       hx-get="/partials/reminder-stats" hx-trigger="load, every 30s" hx-swap="innerHTML">
+    <div class="bg-surface border border-border-custom rounded-xl p-4 text-center">
+      <div class="text-xs text-secondary">Wszystkie</div>
+      <div class="text-2xl font-black text-accent" x-text="totalReminders">0</div>
+    </div>
+    <div class="bg-surface border border-border-custom rounded-xl p-4 text-center">
+      <div class="text-xs text-secondary">Do zrobienia</div>
+      <div class="text-2xl font-black text-warning" x-text="pendingReminders">0</div>
+    </div>
+    <div class="bg-surface border border-border-custom rounded-xl p-4 text-center">
+      <div class="text-xs text-secondary">Zrobione</div>
+      <div class="text-2xl font-black text-success" x-text="doneReminders">0</div>
+    </div>
+  </div>
+
+  <!-- Lista przypomnień -->
+  <div id="reminder-list" hx-get="/api/reminders" hx-trigger="load, every 30s" hx-swap="innerHTML">
+    <div class="text-center text-secondary py-8">Ładowanie...</div>
   </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-function showAddReminder() { document.getElementById('reminder-form').classList.remove('hidden'); }
-async function saveReminder() {
-  const text = document.getElementById('reminder-text').value.trim();
-  const due = document.getElementById('reminder-due').value.trim();
-  if (!text) return;
-  await fetch('/api/obsidian/reminders', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }, body: JSON.stringify({ text, due }) });
-  document.getElementById('reminder-text').value = '';
-  document.getElementById('reminder-due').value = '';
-  document.getElementById('reminder-form').classList.add('hidden');
-  htmx.trigger('#reminder-list', 'load');
-  htmx.trigger('#reminder-stats', 'load');
-}
-async function toggleReminder(id) {
-  await fetch('/api/obsidian/reminders/' + id + '/toggle', { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') } });
-  htmx.trigger('#reminder-list', 'load');
-  htmx.trigger('#reminder-stats', 'load');
-}
-async function deleteReminder(id) {
-  if (!confirm('Usunąć?')) return;
-  await fetch('/api/obsidian/reminders/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') } });
-  htmx.trigger('#reminder-list', 'load');
-  htmx.trigger('#reminder-stats', 'load');
+function remindersApp() {
+  return {
+    showForm: false,
+    newText: '',
+    newPriority: 0,
+    newDue: '',
+    saveMsg: '',
+    reminders: [],
+    totalReminders: 0,
+    pendingReminders: 0,
+    doneReminders: 0,
+
+    init() {
+      this.loadStats();
+    },
+
+    async loadStats() {
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const res = await fetch('/api/reminders', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+          this.reminders = (await res.json()).items || [];
+          this.totalReminders = this.reminders.length;
+          this.pendingReminders = this.reminders.filter(r => !r.done).length;
+          this.doneReminders = this.reminders.filter(r => r.done).length;
+        }
+      } catch {}
+    },
+
+    async saveReminder() {
+      if (!this.newText.trim()) return;
+      this.saveMsg = 'Zapisywanie...';
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const res = await fetch('/api/reminders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({
+            text: this.newText,
+            priority: parseInt(this.newPriority),
+            due_date: this.newDue || null
+          })
+        });
+        if (res.ok) {
+          this.saveMsg = '✓ Dodano';
+          this.newText = '';
+          this.newDue = '';
+          this.newPriority = 0;
+          this.loadStats();
+          htmx.trigger('#reminder-list', 'load');
+          setTimeout(() => { this.saveMsg = ''; this.showForm = false; }, 1500);
+        } else {
+          this.saveMsg = '✗ Błąd zapisu';
+        }
+      } catch {
+        this.saveMsg = '✗ Błąd sieci';
+      }
+    }
+  };
 }
 </script>
 {% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Ustawienia — Villanyan-Agent{% endblock %}
+{% block content %}
+<div class="max-w-2xl space-y-6">
+  <h2 class="text-2xl font-bold">Ustawienia</h2>
+
+  {# Język #}
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <h3 class="font-bold mb-4">Język interfejsu</h3>
+    <div class="space-y-3">
+      <label class="flex items-center gap-3 p-3 rounded-xl border border-accent bg-accent/5 cursor-pointer">
+        <input type="radio" name="lang" value="pl" checked class="accent-accent w-5 h-5" />
+        <div><div class="font-bold">🇵🇱 Polski</div><div class="text-xs text-secondary">Język domyślny</div></div>
+      </label>
+      <label class="flex items-center gap-3 p-3 rounded-xl border border-border-custom cursor-pointer hover:border-accent/50">
+        <input type="radio" name="lang" value="en" class="accent-accent w-5 h-5" />
+        <div><div class="font-bold">🇬🇧 English</div><div class="text-xs text-secondary">Switch interface to English</div></div>
+      </label>
+    </div>
+  </div>
+
+  {# Model #}
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <h3 class="font-bold mb-4">Główny Model AI</h3>
+    <select class="w-full bg-page border border-border-custom rounded-lg p-3 text-primary focus:border-accent outline-none">
+      <option>deepseek-v4-flash</option>
+      <option>deepseek-v4-pro</option>
+    </select>
+  </div>
+</div>
+{% endblock %}

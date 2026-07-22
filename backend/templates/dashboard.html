@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Villanyan-Agent{% endblock %}
+{% block content %}
+<div class="space-y-8">
+
+  {# Status Systemu — HTMX auto-refresh #}
+  <div class="bg-surface border border-border-custom rounded-xl p-6 relative overflow-hidden cursor-pointer hover:border-success/50 transition-colors"
+       hx-get="/partials/system-metrics" hx-trigger="every 30s" hx-swap="innerHTML" id="system-metrics">
+    {% include "partials/system_metrics.html" %}
+  </div>
+
+  {# Welcome + przypomnienia #}
+  <div>
+    <h1 class="text-2xl font-bold text-primary mb-1">Witaj Użytkowniku!</h1>
+    <div class="flex items-center gap-4 text-sm text-secondary" id="reminder-summary"
+         hx-get="/partials/reminder-summary" hx-trigger="load, every 60s" hx-swap="innerHTML">
+    </div>
+  </div>
+
+  {# Grid #}
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    {# Cloudilla #}
+    <div class="bg-surface border border-border-custom rounded-xl p-5">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-accent"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          cloudilla
+        </h2>
+      </div>
+      <div id="cloud-files" hx-get="/api/cloud/files" hx-trigger="load, every 60s" hx-swap="innerHTML">
+        <div class="text-center text-secondary text-sm py-8">Ładowanie...</div>
+      </div>
+    </div>
+
+    {# GitHub #}
+    <div class="bg-surface border border-border-custom rounded-xl p-5">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          Moje Projekty
+        </h2>
+      </div>
+      <div id="github-projects" hx-get="/api/github/projects" hx-trigger="load, every 120s" hx-swap="innerHTML">
+        <div class="text-center text-secondary text-sm py-8">Ładowanie...</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Mózg Persony — Villanyan-Agent{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <h2 class="text-2xl font-bold">Mózg Persony</h2>
+  <p class="text-sm text-secondary">Pliki determinujące osobowość i wiedzę agenta Hermes</p>
+
+  <div id="persona-files" hx-get="/api/hermes/agent-memory" hx-trigger="load, every 60s" hx-swap="innerHTML">
+    <div class="text-center text-secondary py-8">Ładowanie...</div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+<div id="system-metrics">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-surface border border-border-custom rounded-xl p-4">
+      <div class="text-secondary text-xs uppercase tracking-wider mb-1">CPU</div>
+      <div class="text-2xl font-bold">{{ cpu_percent }}%</div>
+      <div class="text-xs text-secondary mt-1">{{ cpu_count }} cores</div>
+    </div>
+    <div class="bg-surface border border-border-custom rounded-xl p-4">
+      <div class="text-secondary text-xs uppercase tracking-wider mb-1">Memory</div>
+      <div class="text-2xl font-bold">{{ mem_percent }}%</div>
+      <div class="text-xs text-secondary mt-1">{{ mem_used }}/{{ mem_total }} GB</div>
+    </div>
+    <div class="bg-surface border border-border-custom rounded-xl p-4">
+      <div class="text-secondary text-xs uppercase tracking-wider mb-1">Disk</div>
+      <div class="text-2xl font-bold">{{ disk_percent }}%</div>
+      <div class="text-xs text-secondary mt-1">{{ disk_used }}/{{ disk_total }} GB</div>
+    </div>
+    <div class="bg-surface border border-border-custom rounded-xl p-4">
+      <div class="text-secondary text-xs uppercase tracking-wider mb-1">Temperature</div>
+      <div class="text-2xl font-bold">{{ temp }}{% if temp %}°C{% else %}N/A{% endif %}</div>
+      <div class="text-xs text-secondary mt-1">Raspberry Pi</div>
+    </div>
+  </div>
+  <div class="text-xs text-secondary text-right">
+    Updated: {{ updated_at }}
+  </div>
+</div>

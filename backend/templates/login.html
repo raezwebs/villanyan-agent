@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Logowanie — Villanyan-Agent{% endblock %}
+{% block content %}
+<div class="flex items-center justify-center min-h-[80vh]">
+  <div class="bg-surface border border-border-custom rounded-2xl p-8 w-full max-w-md shadow-2xl">
+    <div class="flex flex-col items-center mb-8">
+      <div class="text-5xl mb-2">⬡</div>
+      <h1 class="text-2xl font-black tracking-wider">VILLANYAN</h1>
+      <p class="text-xs text-secondary/60 font-medium tracking-widest mt-1">VILLANYAN PERSONAL AGENT</p>
+    </div>
+    <form id="login-form" class="space-y-4">
+      <input type="password" id="password" placeholder="Hasło dostępu" autofocus maxlength="128"
+        class="w-full bg-page border border-border-custom rounded-lg px-4 py-3 text-sm focus:border-accent outline-none transition-colors" />
+      <p id="login-error" class="text-danger text-sm text-center hidden"></p>
+      <button type="submit" id="login-btn"
+        class="w-full bg-accent text-page font-bold py-3 rounded-lg hover:bg-accent/90 transition-colors">
+        Zaloguj się
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  btn.disabled = true;
+  btn.textContent = 'Logowanie...';
+  err.classList.add('hidden');
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: document.getElementById('password').value }),
+    });
+    if (!res.ok) { err.textContent = 'Nieprawidłowe hasło'; err.classList.remove('hidden'); return; }
+    const data = await res.json();
+    localStorage.setItem('villanyan_token', data.access_token);
+    if (data.refresh_token) localStorage.setItem('villanyan_refresh_token', data.refresh_token);
+    window.location.href = '/';
+  } catch { err.textContent = 'Błąd połączenia z serwerem'; err.classList.remove('hidden'); }
+  finally { btn.disabled = false; btn.textContent = 'Zaloguj się'; }
+});
+</script>
+{% endblock %}

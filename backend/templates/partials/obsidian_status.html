@@ -1,0 +1,14 @@
+<div id="obsidian-status">
+  <div class="bg-surface border border-border-custom rounded-xl p-4">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-secondary text-xs uppercase tracking-wider">Obsidian Vault</span>
+      <span class="px-2 py-0.5 text-xs rounded-full {% if vault_ok %}bg-success/10 text-success{% else %}bg-danger/10 text-danger{% endif %}">
+        {% if vault_ok %}Connected{% else %}Disconnected{% endif %}
+      </span>
+    </div>
+    <div class="text-xs text-secondary space-y-1">
+      <div class="flex justify-between"><span>Path:</span><span class="text-primary truncate ml-2 max-w-[200px]">{{ vault_path }}</span></div>
+      <div class="flex justify-between"><span>Reminders:</span><span class="text-primary">{{ reminders_count }}</span></div>
+    </div>
+  </div>
+</div>

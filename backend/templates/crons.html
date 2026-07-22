@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Automatyzacje — Villanyan-Agent{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <div class="flex justify-between items-center">
+    <h2 class="text-2xl font-bold">Automatyzacje i Crony</h2>
+    <button onclick="showAddCron()" class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors">+ Dodaj Automatyzację</button>
+  </div>
+
+  {# Formularz dodawania #}
+  <div id="cron-form" class="bg-surface border border-accent rounded-xl p-5 hidden">
+    <h3 class="font-bold mb-4">Nowa Automatyzacja</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div><label class="block text-xs text-secondary mb-1">Nazwa zadania</label>
+        <input type="text" id="cron-name" class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm focus:border-accent outline-none" /></div>
+      <div><label class="block text-xs text-secondary mb-1">Wyrażenie Cron</label>
+        <input type="text" id="cron-schedule" class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm font-mono focus:border-accent outline-none" placeholder="* * * * *" /></div>
+      <div class="md:col-span-2"><label class="block text-xs text-secondary mb-1">Polecenie</label>
+        <input type="text" id="cron-command" class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm font-mono focus:border-accent outline-none" /></div>
+    </div>
+    <button onclick="saveCron()" class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors">Zapisz</button>
+  </div>
+
+  {# Tabela #}
+  <div id="cron-table" hx-get="/partials/cron-table" hx-trigger="load, every 30s" hx-swap="innerHTML">
+    <div class="text-center text-secondary py-8">Ładowanie...</div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let editingId = null;
+function showAddCron() { document.getElementById('cron-form').classList.remove('hidden'); }
+function hideAddCron() { document.getElementById('cron-form').classList.add('hidden'); editingId = null; }
+
+async function saveCron() {
+  const name = document.getElementById('cron-name').value.trim();
+  const schedule = document.getElementById('cron-schedule').value.trim();
+  const command = document.getElementById('cron-command').value.trim();
+  if (!name || !schedule || !command) return;
+  const url = editingId ? '/api/cron/jobs/' + editingId : '/api/cron/jobs';
+  const method = editingId ? 'PATCH' : 'POST';
+  try {
+    await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }, body: JSON.stringify({ name, schedule, command }) });
+    document.getElementById('cron-name').value = '';
+    document.getElementById('cron-schedule').value = '';
+    document.getElementById('cron-command').value = '';
+    hideAddCron();
+    htmx.trigger('#cron-table', 'load');
+  } catch { alert('Błąd'); }
+}
+
+async function toggleCron(id, active) {
+  await fetch('/api/cron/jobs/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }, body: JSON.stringify({ active: !active }) });
+}
+
+async function runCron(id) {
+  await fetch('/api/cron/jobs/' + id + '/run', { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') } });
+}
+
+async function deleteCron(id) {
+  if (!confirm('Na pewno usunąć?')) return;
+  await fetch('/api/cron/jobs/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') } });
+  htmx.trigger('#cron-table', 'load');
+}
+</script>
+{% endblock %}

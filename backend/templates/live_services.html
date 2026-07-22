@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Status Usług LIVE — Villanyan-Agent{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <h2 class="text-2xl font-bold">Status Usług LIVE</h2>
+
+  {# Docker #}
+  <div x-data="{ open: false }" class="bg-surface border border-border-custom rounded-xl p-5">
+    <button @click="open = !open" class="flex items-center justify-between w-full text-left">
+      <h3 class="text-lg font-bold">Kontenery Docker</h3>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           :class="open ? 'rotate-180' : ''" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div x-show="open" x-transition class="mt-4"
+         hx-get="/partials/docker-list" hx-trigger="load" hx-swap="innerHTML">
+      <div class="text-center text-secondary py-4">Ładowanie...</div>
+    </div>
+  </div>
+
+  {# Porty #}
+  <div x-data="{ open: false }" class="bg-surface border border-border-custom rounded-xl p-5">
+    <button @click="open = !open" class="flex items-center justify-between w-full text-left">
+      <h3 class="text-lg font-bold">Status Portów</h3>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           :class="open ? 'rotate-180' : ''" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div x-show="open" x-transition class="mt-4"
+         hx-get="/partials/port-table" hx-trigger="load" hx-swap="innerHTML">
+      <div class="text-center text-secondary py-4">Ładowanie...</div>
+    </div>
+  </div>
+
+  {# Obsidian #}
+  <div x-data="{ open: false }" class="bg-surface border border-border-custom rounded-xl p-5">
+    <button @click="open = !open" class="flex items-center justify-between w-full text-left">
+      <h3 class="text-lg font-bold">Status Obsidian</h3>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           :class="open ? 'rotate-180' : ''" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div x-show="open" x-transition class="mt-4"
+         hx-get="/partials/obsidian-status" hx-trigger="load" hx-swap="innerHTML">
+      <div class="text-center text-secondary py-4">Sprawdzanie...</div>
+    </div>
+  </div>
+
+  {# Koszty #}
+  <div x-data="{ open: false }" class="bg-surface border border-border-custom rounded-xl p-5">
+    <button @click="open = !open" class="flex items-center justify-between w-full text-left">
+      <h3 class="text-lg font-bold">Koszty API</h3>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           :class="open ? 'rotate-180' : ''" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div x-show="open" x-transition class="mt-4"
+         hx-get="/api/costs" hx-trigger="load" hx-swap="innerHTML">
+      <div class="text-center text-secondary py-4">Ładowanie...</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

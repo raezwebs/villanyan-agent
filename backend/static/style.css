@@ -498,6 +498,12 @@ td { padding: 0.75rem 1rem; }
 .disabled\:opacity-50:disabled { opacity: 0.5; }
 .group { position: relative; }
 .placeholder-secondary\/50::placeholder { color: rgba(142, 142, 147, 0.5); }
+.password-toggle { cursor: pointer; user-select: none; }
+.focus\:border-accent:focus { border-color: var(--accent); }
+.focus\:border-accent\/50:focus { border-color: rgba(0, 209, 139, 0.5); }
+.hover\:border-accent\/30:hover { border-color: rgba(0, 209, 139, 0.3); }
+.bg-danger { background-color: var(--danger); }
+.bg-success { background-color: var(--success); }
 
 /* Nav items (sidebar) */
 .nav-item {

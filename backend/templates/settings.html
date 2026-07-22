@@ -27,11 +27,14 @@
     <h3 class="font-bold mb-4">Główny Model AI</h3>
     <select x-model="selectedModel" @change="saveModel()"
             class="w-full bg-page border border-border-custom rounded-lg p-3 text-primary focus:border-accent outline-none">
-      <option value="deepseek-v4-flash">deepseek-v4-flash (szybki, tani)</option>
-      <option value="deepseek-v4-pro">deepseek-v4-pro (dokładny, wolny)</option>
-      <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-      <option value="gpt-4o-mini">GPT-4o Mini</option>
+      <template x-for="m in ollamaModels" :key="m">
+        <option :value="m" x-text="m.replace(':latest','')" :selected="selectedModel === m"></option>
+      </template>
+      <option value="" disabled x-show="!ollamaModels.length">Ładowanie modeli z Ollama...</option>
     </select>
+    <div class="text-xs text-secondary mt-1" x-show="!ollamaOnline && ollamaModels.length === 0">
+      ⚠ Ollama offline — lista modeli niedostępna. Skonfiguruj URL w sekcji poniżej i odśwież.
+    </div>
     <div x-show="modelSaved" x-transition class="text-xs text-success mt-2">✓ Model zapisany w localStorage</div>
   </div>
 

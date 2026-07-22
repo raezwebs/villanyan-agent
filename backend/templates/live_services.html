@@ -1,56 +1,50 @@
 {% extends "base.html" %}
 {% block title %}Status Usług LIVE — Villanyan-Agent{% endblock %}
 {% block content %}
-<div class="space-y-6" x-data="{ open: true }">
-  <h2 class="text-2xl font-bold">Status Usług LIVE</h2>
+<div class="space-y-6">
+  <h2 class="text-2xl font-bold mb-2">Status Usług LIVE</h2>
+  <p class="text-sm text-secondary mb-6">Auto-odświeżanie: metryki 10s, Docker 30s, porty 60s</p>
 
-  {# Docker #}
-  <div x-data="{ open: true }" class="bg-surface border border-border-custom rounded-xl p-5">
-    <button @click="open = !open" class="flex items-center justify-between w-full text-left">
-      <h3 class="text-lg font-bold">Kontenery Docker</h3>
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-           :class="open ? 'rotate-180' : ''" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-    <div x-show="open" x-transition class="mt-4"
-         hx-get="/partials/docker-list" hx-trigger="load" hx-swap="innerHTML">
-      <div class="text-center text-secondary py-4">Ładowanie...</div>
+  {# Docker — HTMX auto-refresh co 30s #}
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-lg font-bold flex items-center gap-2">🐳 Kontenery Docker</h3>
+      <span class="text-[10px] text-secondary/60" id="docker-header-time"></span>
+    </div>
+    <div hx-get="/partials/docker-list" hx-trigger="load, every 30s" hx-swap="innerHTML" id="docker-container-section">
+      <div class="animate-pulse bg-surface-hover rounded-lg h-24"></div>
     </div>
   </div>
 
-  {# Porty #}
-  <div x-data="{ open: false }" class="bg-surface border border-border-custom rounded-xl p-5">
-    <button @click="open = !open" class="flex items-center justify-between w-full text-left">
-      <h3 class="text-lg font-bold">Status Portów</h3>
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-           :class="open ? 'rotate-180' : ''" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-    <div x-show="open" x-transition class="mt-4"
-         hx-get="/partials/port-table" hx-trigger="load" hx-swap="innerHTML">
-      <div class="text-center text-secondary py-4">Ładowanie...</div>
+  {# Porty — HTMX auto-refresh co 60s #}
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-lg font-bold flex items-center gap-2">🔌 Status Portów</h3>
+      <span class="text-[10px] text-secondary/60" id="port-header-time"></span>
+    </div>
+    <div hx-get="/partials/port-table" hx-trigger="load, every 60s" hx-swap="innerHTML" id="port-table-section">
+      <div class="animate-pulse bg-surface-hover rounded-lg h-24"></div>
     </div>
   </div>
 
-  {# Obsidian #}
-  <div x-data="{ open: false }" class="bg-surface border border-border-custom rounded-xl p-5">
-    <button @click="open = !open" class="flex items-center justify-between w-full text-left">
-      <h3 class="text-lg font-bold">Status Obsidian</h3>
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-           :class="open ? 'rotate-180' : ''" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-    <div x-show="open" x-transition class="mt-4"
-         hx-get="/partials/obsidian-status" hx-trigger="load" hx-swap="innerHTML">
-      <div class="text-center text-secondary py-4">Sprawdzanie...</div>
+  {# Obsidian — HTMX auto-refresh co 30s #}
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-lg font-bold flex items-center gap-2">📔 Status Obsidian</h3>
+      <span class="text-[10px] text-secondary/60" id="obsidian-header-time"></span>
+    </div>
+    <div hx-get="/partials/obsidian-status" hx-trigger="load, every 30s" hx-swap="innerHTML" id="obsidian-status-section">
+      <div class="animate-pulse bg-surface-hover rounded-lg h-16"></div>
     </div>
   </div>
 
-  {# Koszty (Alpine.js fetch, nie HTMX) #}
+  {# Koszty (Alpine.js fetch) #}
   <div x-data="costPanel()" x-init="load()" class="bg-surface border border-border-custom rounded-xl p-5">
-    <button @click="open = !open" class="flex items-center justify-between w-full text-left">
-      <h3 class="text-lg font-bold">Koszty API</h3>
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-           :class="open ? 'rotate-180' : ''" class="transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-    <div x-show="open" x-transition class="mt-4">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-lg font-bold flex items-center gap-2">💰 Koszty API</h3>
+      <span class="text-[10px] text-secondary/60" x-text="lastRefresh"></span>
+    </div>
+    <div class="mt-2">
       <template x-for="r in rates" :key="r.id">
         <div class="flex justify-between py-2 border-b border-border-custom text-sm">
           <span x-text="r.model" class="font-mono text-accent"></span>
@@ -58,13 +52,28 @@
         </div>
       </template>
       <div x-show="rates.length === 0 && loaded" class="text-center text-secondary py-4 text-sm">Brak skonfigurowanych stawek</div>
-      <div x-show="!loaded" class="text-center text-secondary py-4 text-sm">Ładowanie...</div>
+      <div x-show="!loaded" class="space-y-2">
+        <div class="h-10 bg-surface-hover rounded-lg animate-pulse"></div>
+        <div class="h-10 bg-surface-hover rounded-lg animate-pulse"></div>
+      </div>
     </div>
   </div>
 </div>
+
+{# Update header timestamps periodically #}
 <script>
+function updateLiveTimestamps() {
+  const now = new Date().toLocaleTimeString('pl-PL');
+  ['docker-header-time', 'port-header-time', 'obsidian-header-time'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = 'ostatnie: ' + now;
+  });
+}
+setInterval(updateLiveTimestamps, 10000);
+updateLiveTimestamps();
+
 function costPanel() {
-  return { open: true, rates: [], loaded: false,
+  return { open: true, rates: [], loaded: false, lastRefresh: '',
     async load() {
       try {
         const r = await fetch('/api/costs', {
@@ -72,6 +81,7 @@ function costPanel() {
         });
         const d = await r.json();
         this.rates = d.items || [];
+        this.lastRefresh = new Date().toLocaleTimeString('pl-PL');
       } catch { this.rates = []; }
       this.loaded = true;
     }

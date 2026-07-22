@@ -6,11 +6,11 @@
           <th class="text-left py-3 px-4">Nazwa</th>
           <th class="text-left py-3 px-4 hidden md:table-cell">Harmonogram</th>
           <th class="text-left py-3 px-4">Status</th>
+          <th class="text-left py-3 px-4 hidden lg:table-cell">Ostatnie uruch.</th>
           <th class="text-right py-3 px-4">Akcje</th>
         </tr>
       </thead>
-      <tbody id="cron-table-body">
-      </tbody>
+      <tbody id="cron-table-body"></tbody>
     </table>
   </div>
 </div>
@@ -21,22 +21,35 @@
     const res = await fetch('/api/cron/jobs', {
       headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
     });
-    if (!res.ok) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-8">Brak dostępu</td></tr>'; return; }
+    if (!res.ok) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-8">Brak dostępu</td></tr>'; return; }
     const data = await res.json();
-    if (!data.items || data.items.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary py-8">Brak automatycznych zadań</td></tr>';
+    const items = data.items || [];
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8"><div class="text-2xl mb-2">⏰</div><div class="text-sm text-secondary">Brak zaplanowanych zadań</div><button onclick="showAddCron()" class="mt-3 text-xs bg-accent text-page px-3 py-1.5 rounded-lg font-bold hover:bg-accent/90">+ Dodaj pierwsze zadanie</button></td></tr>';
       return;
     }
-    for (const j of data.items) {
-      tbody.innerHTML += '<tr>' +
+    tbody.innerHTML = items.map(j => {
+      const lastRun = j.last_run_ts ? new Date(j.last_run_ts).toLocaleString('pl-PL') : '—';
+      const exitCode = j.last_exit_code !== null ? (j.last_exit_code === 0 ? '✓' : '✗ ' + j.last_exit_code) : '—';
+      return '<tr>' +
         '<td class="py-3 px-4"><div class="font-bold text-sm">' + j.name + '</div></td>' +
         '<td class="py-3 px-4 hidden md:table-cell"><code class="text-xs font-mono bg-page px-2 py-1 rounded">' + j.schedule + '</code></td>' +
         '<td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full ' + (j.active ? 'bg-success' : 'bg-secondary') + '"></span>' + (j.active ? 'Aktywny' : 'Wyłączony') + '</span></td>' +
+        '<td class="py-3 px-4 hidden lg:table-cell text-xs text-secondary font-mono" title="exit: ' + (j.last_exit_code !== null ? j.last_exit_code : '—') + '">' + lastRun + ' ' + exitCode + '</td>' +
         '<td class="py-3 px-4 text-right"><div class="flex gap-1 justify-end">' +
-          '<button onclick="runCron(' + j.id + ')" class="text-xs px-2 py-1 rounded bg-accent/10 text-accent hover:bg-accent/20" title="Uruchom">▶</button>' +
+          '<button onclick="runCron(' + j.id + ')" class="text-xs px-2 py-1 rounded bg-accent/10 text-accent hover:bg-accent/20" title="Uruchom teraz">▶</button>' +
           '<button onclick="deleteCron(' + j.id + ')" class="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20" title="Usuń">✕</button>' +
+          '<button onclick="toggleCronState(' + j.id + ',' + j.active + ')" class="text-xs px-2 py-1 rounded bg-surface-hover text-secondary hover:text-primary" title="Przełącz">' + (j.active ? '⏸' : '▶') + '</button>' +
         '</div></td></tr>';
-    }
-  } catch { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-8">Błąd połączenia</td></tr>'; }
+    }).join('');
+  } catch { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-8">Błąd połączenia</td></tr>'; }
 })();
+async function toggleCronState(id, active) {
+  await fetch('/api/cron/jobs/' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') },
+    body: JSON.stringify({ active: !active })
+  });
+  htmx.trigger('#cron-table', 'load');
+}
 </script>

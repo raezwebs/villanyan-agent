@@ -1,47 +1,43 @@
-<div class="overflow-x-auto">
-  <table class="w-full text-sm">
-    <thead>
-      <tr class="text-secondary text-xs uppercase tracking-wider border-b border-border-custom">
-        <th class="text-left py-3 px-4">Nazwa</th>
-        <th class="text-left py-3 px-4">Status</th>
-        <th class="text-left py-3 px-4 hidden md:table-cell">Porty</th>
-        <th class="text-right py-3 px-4">Akcje</th>
-      </tr>
-    </thead>
-    <tbody id="docker-container-list">
-    </tbody>
-  </table>
+<div id="docker-list" class="space-y-2">
+  <div class="flex items-center justify-between mb-3">
+    <span class="text-xs text-secondary">Kontenery Docker</span>
+    <span class="text-[10px] text-secondary/60" id="docker-refresh-time"></span>
+  </div>
+  <div id="docker-container-list"></div>
 </div>
 <script>
 (async function() {
-  const tbody = document.getElementById('docker-container-list');
+  const container = document.getElementById('docker-container-list');
+  const refreshEl = document.getElementById('docker-refresh-time');
+  if (refreshEl) refreshEl.textContent = 'odświeżono: ' + new Date().toLocaleTimeString('pl-PL');
   try {
     const res = await fetch('/api/docker/containers', {
       headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
     });
-    if (!res.ok) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-8">Docker niedostępny</td></tr>'; return; }
-    const data = await res.json();
-    if (!data.containers || data.containers.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary py-8">Brak kontenerów Docker</td></tr>';
+    if (!res.ok) {
+      container.innerHTML = '<div class="bg-surface border border-border-custom rounded-xl p-6 text-center"><div class="text-2xl mb-2">🐳</div><div class="text-sm text-secondary">Docker offline lub brak uprawnień</div></div>';
       return;
     }
+    const data = await res.json();
+    if (!data.containers || data.containers.length === 0) {
+      container.innerHTML = '<div class="text-center text-secondary py-6 text-sm">Brak kontenerów Docker</div>';
+      return;
+    }
+    let html = '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-secondary text-xs uppercase tracking-wider border-b border-border-custom"><th class="text-left py-3 px-4">Nazwa</th><th class="text-left py-3 px-4 hidden md:table-cell">Obraz</th><th class="text-left py-3 px-4">Status</th><th class="text-left py-3 px-4 hidden md:table-cell">Porty</th></tr></thead><tbody>';
     for (const c of data.containers) {
       const isRunning = c.status === 'running';
-      tbody.innerHTML += '<tr>' +
-        '<td class="py-3 px-4"><div class="font-bold">' + c.name + '</div><div class="text-xs text-secondary">' + c.image + '</div></td>' +
-        '<td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs ' + (isRunning ? 'text-success' : 'text-secondary') + '"><span class="w-2 h-2 rounded-full ' + (isRunning ? 'bg-success' : 'bg-secondary') + '"></span>' + c.status + '</span></td>' +
-        '<td class="py-3 px-4 hidden md:table-cell text-xs text-secondary">' + Object.keys(c.ports || {}).join(', ') || '-' + '</td>' +
-        '<td class="py-3 px-4 text-right"><div class="flex gap-1 justify-end">' +
-          (isRunning ? '<button onclick="ctrlContainer(\'' + c.id + '\',\'stop\')" class="text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20">Stop</button>' : '<button onclick="ctrlContainer(\'' + c.id + '\',\'start\')" class="text-xs px-2 py-1 rounded bg-success/10 text-success hover:bg-success/20">Start</button>') +
-          '<button onclick="ctrlContainer(\'' + c.id + '\',\'restart\')" class="text-xs px-2 py-1 rounded bg-surface-hover text-secondary hover:text-primary">Restart</button>' +
-        '</div></td></tr>';
+      const portsHtml = Object.entries(c.ports || {}).map(([k, v]) => {
+        const mappings = v.map(m => m.host_port).filter(Boolean).join(', ');
+        return k.replace('/tcp','') + (mappings ? '→' + mappings : '');
+      }).join(', ') || '-';
+      html += '<tr>' +
+        '<td class="py-3 px-4"><div class="font-bold text-sm">' + c.name + '</div></td>' +
+        '<td class="py-3 px-4 hidden md:table-cell text-xs text-secondary font-mono truncate max-w-[200px]">' + (c.image || '-') + '</td>' +
+        '<td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full ' + (isRunning ? 'bg-success' : 'bg-secondary') + '"></span>' + c.status + '</span></td>' +
+        '<td class="py-3 px-4 hidden md:table-cell text-xs text-secondary font-mono">' + portsHtml + '</td></tr>';
     }
-  } catch { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-8">Błąd połączenia</td></tr>'; }
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  } catch { container.innerHTML = '<div class="bg-surface border border-border-custom rounded-xl p-6 text-center"><div class="text-2xl mb-2">🐳</div><div class="text-sm text-secondary">Docker offline lub brak uprawnień</div></div>'; }
 })();
-async function ctrlContainer(id, action) {
-  try {
-    await fetch('/api/docker/containers/' + id + '/' + action, { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') } });
-    location.reload();
-  } catch {}
-}
 </script>

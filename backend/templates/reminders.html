@@ -7,7 +7,7 @@
       <h2 class="text-2xl font-bold">Przypomnienia</h2>
       <p class="text-sm text-secondary" x-text="'Łącznie: ' + totalReminders + ' | Do zrobienia: ' + pendingReminders"></p>
     </div>
-    <button @click="showForm = !showForm" class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
+    <button @click="showForm = !showForm; if(showForm) saveMsg=''" class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       <span x-text="showForm ? 'Anuluj' : 'Dodaj przypomnienie'"></span>
     </button>
@@ -24,7 +24,7 @@
       </div>
       <div>
         <label class="block text-xs text-secondary mb-1">Priorytet</label>
-        <select x-model="newPriority"
+        <select x-model.number="newPriority"
                 class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm focus:border-accent outline-none">
           <option value="0">🟢 Niski</option>
           <option value="1">🟡 Średni</option>
@@ -40,15 +40,25 @@
     <button @click="saveReminder()"
             :disabled="!newText.trim()"
             class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors disabled:opacity-50">
-      Dodaj
+      <span x-show="!saving">Dodaj</span>
+      <span x-show="saving" class="inline-flex items-center gap-2"><span class="w-3 h-3 border-2 border-page border-t-transparent rounded-full animate-spin"></span> Zapisywanie...</span>
     </button>
     <span x-show="saveMsg" x-text="saveMsg" class="text-sm ml-3"
           :class="saveMsg.includes('✓') ? 'text-success' : 'text-danger'"></span>
   </div>
 
+  <!-- Filtry -->
+  <div class="flex gap-2">
+    <button @click="filter='all'; loadStats()" class="text-xs px-3 py-1.5 rounded-lg transition-colors"
+            :class="filter === 'all' ? 'bg-accent text-page' : 'bg-surface border border-border-custom text-secondary hover:text-primary'">Wszystkie</button>
+    <button @click="filter='active'; loadStats()" class="text-xs px-3 py-1.5 rounded-lg transition-colors"
+            :class="filter === 'active' ? 'bg-accent text-page' : 'bg-surface border border-border-custom text-secondary hover:text-primary'">Aktywne</button>
+    <button @click="filter='done'; loadStats()" class="text-xs px-3 py-1.5 rounded-lg transition-colors"
+            :class="filter === 'done' ? 'bg-accent text-page' : 'bg-surface border border-border-custom text-secondary hover:text-primary'">Zrealizowane</button>
+  </div>
+
   <!-- Statystyki -->
-  <div class="grid grid-cols-3 gap-4" id="reminder-stats"
-       hx-get="/partials/reminder-stats" hx-trigger="load, every 30s" hx-swap="innerHTML">
+  <div class="grid grid-cols-3 gap-4">
     <div class="bg-surface border border-border-custom rounded-xl p-4 text-center">
       <div class="text-xs text-secondary">Wszystkie</div>
       <div class="text-2xl font-black text-accent" x-text="totalReminders">0</div>
@@ -64,8 +74,32 @@
   </div>
 
   <!-- Lista przypomnień -->
-  <div id="reminder-list" hx-get="/api/reminders" hx-trigger="load, every 30s" hx-swap="innerHTML">
-    <div class="text-center text-secondary py-8">Ładowanie...</div>
+  <div class="space-y-2" id="reminder-items">
+    <template x-for="r in reminders" :key="r.id">
+      <div class="flex items-center gap-3 p-3 rounded-xl bg-surface border border-border-custom hover:border-accent/30 transition-colors group">
+        <button @click="toggleReminder(r)" class="w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors"
+                :class="r.done ? 'bg-accent border-accent' : 'border-border-custom hover:border-accent'">
+          <svg x-show="r.done" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+        <div class="flex-1 min-w-0">
+          <span class="text-sm" :class="r.done ? 'line-through text-secondary' : 'text-primary'" x-text="r.text"></span>
+          <div class="flex items-center gap-2 text-[10px] text-secondary/60 mt-0.5">
+            <span x-show="r.priority > 0" x-text="r.priority === 2 ? '🔴' : '🟡'"></span>
+            <span x-show="r.due_date" x-text="'📅 ' + new Date(r.due_date).toLocaleDateString('pl-PL')"></span>
+          </div>
+        </div>
+        <button @click="deleteReminder(r.id)" class="opacity-0 group-hover:opacity-100 text-secondary hover:text-danger transition-all text-xs px-2 py-1">✕</button>
+      </div>
+    </template>
+    <div x-show="!loading && reminders.length === 0" class="text-center py-8">
+      <div class="text-3xl mb-2" x-text="filter === 'done' ? '✅' : '📋'"></div>
+      <div class="text-sm text-secondary" x-text="filter === 'done' ? 'Brak zrealizowanych przypomnień' : 'Brak aktywnych przypomnień 🎉'"></div>
+    </div>
+    <div x-show="loading" class="space-y-2">
+      <div class="h-14 bg-surface-hover rounded-xl animate-pulse"></div>
+      <div class="h-14 bg-surface-hover rounded-xl animate-pulse"></div>
+      <div class="h-14 bg-surface-hover rounded-xl animate-pulse"></div>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -74,47 +108,55 @@
 function remindersApp() {
   return {
     showForm: false,
+    filter: 'all',
     newText: '',
     newPriority: 0,
     newDue: '',
     saveMsg: '',
+    saving: false,
     reminders: [],
     totalReminders: 0,
     pendingReminders: 0,
     doneReminders: 0,
+    loading: true,
 
     init() {
       this.loadStats();
     },
 
     async loadStats() {
+      this.loading = true;
       const token = localStorage.getItem('villanyan_token');
       try {
-        const res = await fetch('/api/reminders', {
+        const params = this.filter === 'all' ? '' : '?done=' + (this.filter === 'done' ? 'true' : 'false');
+        const res = await fetch('/api/reminders' + params, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         if (res.ok) {
-          this.reminders = (await res.json()).items || [];
+          const d = await res.json();
+          this.reminders = d.items || [];
           this.totalReminders = this.reminders.length;
           this.pendingReminders = this.reminders.filter(r => !r.done).length;
           this.doneReminders = this.reminders.filter(r => r.done).length;
         }
       } catch {}
+      this.loading = false;
     },
 
     async saveReminder() {
       if (!this.newText.trim()) return;
-      this.saveMsg = 'Zapisywanie...';
+      this.saving = true;
+      this.saveMsg = '';
       const token = localStorage.getItem('villanyan_token');
       try {
+        const body = { text: this.newText, priority: this.newPriority };
+        if (this.newDue) {
+          body.due_date = this.newDue + 'T00:00:00';
+        }
         const res = await fetch('/api/reminders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({
-            text: this.newText,
-            priority: parseInt(this.newPriority),
-            due_date: this.newDue || null
-          })
+          body: JSON.stringify(body)
         });
         if (res.ok) {
           this.saveMsg = '✓ Dodano';
@@ -122,51 +164,41 @@ function remindersApp() {
           this.newDue = '';
           this.newPriority = 0;
           this.loadStats();
-          htmx.trigger('#reminder-list', 'load');
           setTimeout(() => { this.saveMsg = ''; this.showForm = false; }, 1500);
         } else {
-          this.saveMsg = '✗ Błąd zapisu';
+          const err = await res.json().catch(() => ({}));
+          this.saveMsg = '✗ ' + (err.detail || 'Błąd zapisu');
         }
       } catch {
         this.saveMsg = '✗ Błąd sieci';
       }
+      this.saving = false;
+    },
+
+    async toggleReminder(r) {
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        await fetch('/api/reminders/' + r.id, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ done: !r.done })
+        });
+      } catch {}
+      this.loadStats();
+    },
+
+    async deleteReminder(id) {
+      if (!confirm('Usunąć?')) return;
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        await fetch('/api/reminders/' + id, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+      } catch {}
+      this.loadStats();
     }
   };
-}
-
-// Global functions called from reminder_list.html partial
-async function toggleReminder(id) {
-  const token = localStorage.getItem('villanyan_token');
-  try {
-    await fetch('/api/reminders/' + id + '/toggle', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ done: true })
-    }).catch(() => fetch('/api/obsidian/reminders/' + id + '/toggle', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token }
-    }));
-  } catch {}
-  htmx.trigger('#reminder-list', 'load');
-  htmx.trigger('#reminder-stats', 'load');
-  location.reload();
-}
-async function deleteReminder(id) {
-  if (!confirm('Usunąć?')) return;
-  const token = localStorage.getItem('villanyan_token');
-  try {
-    const res = await fetch('/api/reminders/' + id, {
-      method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (!res.ok) await fetch('/api/obsidian/reminders/' + id, {
-      method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-  } catch {}
-  htmx.trigger('#reminder-list', 'load');
-  htmx.trigger('#reminder-stats', 'load');
-  location.reload();
 }
 </script>
 {% endblock %}

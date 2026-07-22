@@ -1,14 +1,37 @@
 <div id="obsidian-status">
-  <div class="bg-surface border border-border-custom rounded-xl p-4">
-    <div class="flex items-center justify-between mb-3">
-      <span class="text-secondary text-xs uppercase tracking-wider">Obsidian Vault</span>
-      <span class="px-2 py-0.5 text-xs rounded-full {% if vault_ok %}bg-success/10 text-success{% else %}bg-danger/10 text-danger{% endif %}">
-        {% if vault_ok %}Connected{% else %}Disconnected{% endif %}
-      </span>
-    </div>
-    <div class="text-xs text-secondary space-y-1">
-      <div class="flex justify-between"><span>Path:</span><span class="text-primary truncate ml-2 max-w-[200px]">{{ vault_path }}</span></div>
-      <div class="flex justify-between"><span>Reminders:</span><span class="text-primary">{{ reminders_count }}</span></div>
-    </div>
+  <div class="flex items-center justify-between mb-3">
+    <span class="text-xs text-secondary">Obsidian Vault</span>
+  </div>
+  <div id="obsidian-status-inner">
+    <div class="animate-pulse bg-surface-hover rounded-lg h-16"></div>
   </div>
 </div>
+<script>
+(async function() {
+  const container = document.getElementById('obsidian-status-inner');
+  try {
+    const res = await fetch('/api/obsidian/status', {
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
+    });
+    if (!res.ok) {
+      container.innerHTML = '<div class="bg-surface border border-border-custom rounded-xl p-4 text-center"><div class="text-2xl mb-1">📔</div><div class="text-xs text-secondary">Obsidian Vault niedostępny — sprawdź ścieżkę w .env</div></div>';
+      return;
+    }
+    const d = await res.json();
+    const ok = d.vault_exists;
+    container.innerHTML =
+      '<div class="bg-surface border border-border-custom rounded-xl p-4">' +
+        '<div class="flex items-center justify-between mb-3">' +
+          '<span class="text-xs text-secondary">Obsidian Vault</span>' +
+          '<span class="px-2 py-0.5 text-xs rounded-full ' + (ok ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger') + '">' + (ok ? 'Connected' : 'Disconnected') + '</span>' +
+        '</div>' +
+        '<div class="text-xs text-secondary space-y-1">' +
+          '<div class="flex justify-between"><span>Path:</span><span class="text-primary truncate ml-2 max-w-[200px]">' + (d.vault_path || '-') + '</span></div>' +
+          '<div class="flex justify-between"><span>Reminders file:</span><span class="text-primary">' + (d.reminders_file_exists ? '✓' : '✗') + '</span></div>' +
+        '</div>' +
+      '</div>';
+  } catch {
+    container.innerHTML = '<div class="bg-surface border border-border-custom rounded-xl p-4 text-center"><div class="text-2xl mb-1">📔</div><div class="text-xs text-secondary">Obsidian Vault niedostępny</div></div>';
+  }
+})();
+</script>

@@ -17,39 +17,39 @@ def _render(request: Request, template: str, **context):
 
 @router.get("/", include_in_schema=False)
 async def index(request: Request):
-    return _render(request, "dashboard.html")
+    return _render(request, "dashboard.html", active_view="dashboard")
 
 
 @router.get("/login", include_in_schema=False)
 async def login_page(request: Request):
-    return _render(request, "login.html")
+    return _render(request, "login.html", active_view="login")
 
 
 @router.get("/live", include_in_schema=False)
 async def live_page(request: Request):
-    return _render(request, "live_services.html")
+    return _render(request, "live_services.html", active_view="live")
 
 
 @router.get("/chat", include_in_schema=False)
 async def chat_page(request: Request):
-    return _render(request, "chat.html")
+    return _render(request, "chat.html", active_view="chat")
 
 
 @router.get("/crons", include_in_schema=False)
 async def crons_page(request: Request):
-    return _render(request, "crons.html")
+    return _render(request, "crons.html", active_view="crons")
 
 
 @router.get("/reminders", include_in_schema=False)
 async def reminders_page(request: Request):
-    return _render(request, "reminders.html")
+    return _render(request, "reminders.html", active_view="reminders")
 
 
 @router.get("/persona", include_in_schema=False)
 async def persona_page(request: Request):
-    return _render(request, "persona_brain.html")
+    return _render(request, "persona_brain.html", active_view="persona")
 
 
 @router.get("/settings", include_in_schema=False)
 async def settings_page(request: Request):
-    return _render(request, "settings.html")
+    return _render(request, "settings.html", active_view="settings")

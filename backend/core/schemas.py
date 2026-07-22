@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -46,6 +46,28 @@ class CronJobCreate(BaseModel):
     schedule: str = Field(..., max_length=64)
     command: str = Field(..., max_length=512)
     active: bool = True
+
+    @field_validator("schedule")
+    @classmethod
+    def validate_cron(cls, v: str) -> str:
+        """Validate cron expression: 5 or 6 space-separated fields."""
+        parts = v.strip().split()
+        if len(parts) not in (5, 6):
+            raise ValueError(
+                "Invalid cron expression: expected 5 or 6 space-separated fields"
+            )
+        allowed = {"*", ",", "-", "/", "0", "1", "2", "3", "4", "5", "6", "7",
+                   "8", "9", "L", "W", "#", "?", "JAN", "FEB", "MAR", "APR",
+                   "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+                   "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"}
+        for part in parts:
+            chars = set(part)
+            if not chars <= allowed:
+                invalid = chars - allowed
+                raise ValueError(
+                    f"Invalid characters in cron field: {''.join(sorted(invalid))}"
+                )
+        return v.strip()
 
 
 class CronJobUpdate(BaseModel):

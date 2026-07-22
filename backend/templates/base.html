@@ -29,39 +29,102 @@
         <button @click="sidebarOpen = false" class="lg:hidden text-secondary"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
       </div>
 
-      {# Nav #}
+      {# Nav z ikonami #}
       <div class="flex-1 overflow-y-auto py-4 px-3">
         <h4 class="text-[10px] font-bold text-secondary uppercase tracking-wider mb-2 px-3">⬡ Villanyan</h4>
-        <div class="space-y-0.5">
-          {% for item in [
-            ('dashboard', 'Dashboard', '/'),
-            ('live', 'Status Usług LIVE', '/live'),
-            ('crons', 'Automatyzacje/Crony', '/crons'),
-            ('reminders', 'Przypomnienia', '/reminders'),
-            ('persona', 'Mózg Persony', '/persona'),
-          ] %}
-          <a href="{{ item[2] }}"
-             class="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors"
-             :class="view === '{{ item[0] }}' ? 'sidebar-item-active' : 'text-secondary hover:text-primary hover:bg-surface-hover'"
-             @click="view = '{{ item[0] }}'; sidebarOpen = false">
-            <span>{{ item[1] }}</span>
+        <nav class="space-y-0.5">
+          <a href="/"
+             class="nav-item"
+             :class="view === 'dashboard' ? 'nav-item-active' : ''"
+             @click="view = 'dashboard'; sidebarOpen = false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+            </svg>
+            <span>Dashboard</span>
           </a>
-          {% endfor %}
-        </div>
+          <a href="/live"
+             class="nav-item"
+             :class="view === 'live' ? 'nav-item-active' : ''"
+             @click="view = 'live'; sidebarOpen = false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+            </svg>
+            <span>Status LIVE</span>
+            <span class="nav-badge" id="sidebar-live-badge" style="display:none">●</span>
+          </a>
+          <a href="/chat"
+             class="nav-item"
+             :class="view === 'chat' ? 'nav-item-active' : ''"
+             @click="view = 'chat'; sidebarOpen = false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>Hermes Chat</span>
+            <span class="nav-badge nav-badge-accent" id="sidebar-hermes-dot">⬡</span>
+          </a>
+          <a href="/crons"
+             class="nav-item"
+             :class="view === 'crons' ? 'nav-item-active' : ''"
+             @click="view = 'crons'; sidebarOpen = false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Automatyzacje</span>
+          </a>
+          <a href="/reminders"
+             class="nav-item"
+             :class="view === 'reminders' ? 'nav-item-active' : ''"
+             @click="view = 'reminders'; sidebarOpen = false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span>Przypomnienia</span>
+            <span class="nav-count" id="sidebar-reminder-count" style="display:none">0</span>
+          </a>
+          <a href="/persona"
+             class="nav-item"
+             :class="view === 'persona' ? 'nav-item-active' : ''"
+             @click="view = 'persona'; sidebarOpen = false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/>
+              <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/>
+            </svg>
+            <span>Mózg Persony</span>
+          </a>
+
+          <div class="nav-divider"></div>
+
+          <a href="/settings"
+             class="nav-item"
+             :class="view === 'settings' ? 'nav-item-active' : ''"
+             @click="view = 'settings'; sidebarOpen = false">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+            <span>Ustawienia</span>
+          </a>
+        </nav>
       </div>
 
-      {# Bottom user area #}
-      <div class="p-4 border-t border-border-custom hidden lg:block">
+      {# Bottom user area — dynamiczny #}
+      <div class="p-4 border-t border-border-custom">
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3 text-sm text-secondary">
-            <div class="w-8 h-8 rounded-full bg-accent/20 text-accent flex items-center justify-center font-bold">W</div>
-            <div>
-              <div class="font-bold text-primary" id="user-name">vv-rp</div>
-              <div class="text-xs" id="user-status">Połączono</div>
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-accent/20 text-accent flex items-center justify-center font-bold text-sm shrink-0" id="sidebar-avatar">V</div>
+            <div class="min-w-0">
+              <div class="text-sm font-bold text-primary truncate" id="sidebar-username">villanyan</div>
+              <div class="flex items-center gap-1 text-xs" id="sidebar-hermes-status">
+                <span class="w-1.5 h-1.5 rounded-full bg-secondary" id="sidebar-hermes-dot-color"></span>
+                <span class="text-secondary" id="sidebar-hermes-model">sprawdzanie...</span>
+              </div>
             </div>
           </div>
-          <button id="logout-btn" class="p-2 text-secondary hover:text-danger rounded-lg transition-colors" title="Wyloguj">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <button id="logout-btn" class="p-1.5 text-secondary hover:text-danger rounded-lg transition-colors shrink-0" title="Wyloguj">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
           </button>
         </div>
       </div>
@@ -72,22 +135,63 @@
 
     {# ═══════════════════════════════════════════════════════════════ MAIN CONTENT ═══ #}
     <div class="flex-1 flex flex-col min-w-0">
-      {# Topbar #}
+
+      {# Topbar — live RPi metrics + Hermes status #}
       <header class="h-14 bg-surface border-b border-border-custom flex items-center justify-between px-4 shrink-0">
-        <div class="flex items-center gap-3">
-          <button @click="sidebarOpen = true" class="lg:hidden text-secondary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <div class="flex items-center gap-3 min-w-0">
+          <button @click="sidebarOpen = true" class="lg:hidden text-secondary hover:text-primary transition-colors p-1">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
           </button>
-          <span class="font-mono text-xs text-secondary hidden sm:inline-block" id="clock">villanyan-pi • </span>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="hidden md:flex items-center gap-2 text-xs font-mono mr-4 font-bold" id="system-status">
-            <span class="w-2.5 h-2.5 rounded-full bg-success animate-pulse"></span>
-            SYSTEM JEST W PEŁNI FUNKCJONALNY
+          <div class="flex items-center gap-2 text-xs font-mono text-secondary hidden sm:flex">
+            <span class="text-accent/60">⬡</span>
+            <span>villanyan-pi</span>
+            <span class="text-secondary/30">•</span>
+            <span id="topbar-clock" class="text-secondary/70"></span>
           </div>
-          <span id="ollama-topbar" class="text-xs font-mono hidden md:inline-block mr-4"></span>
-          <a href="/settings" class="p-2 text-secondary hover:text-primary transition-colors rounded-lg hover:bg-surface-hover">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </div>
+
+        <div class="flex items-center gap-1 md:gap-2 shrink-0">
+          {# Metryki RPi #}
+          <div class="hidden md:flex items-center gap-1" id="topbar-metrics">
+            <div class="topbar-metric" id="topbar-cpu" title="CPU">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>
+                <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
+                <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
+              </svg>
+              <span id="topbar-cpu-val">—</span>
+            </div>
+            <div class="topbar-metric" id="topbar-ram" title="RAM">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M6 19v-3"/><path d="M10 19v-9"/><path d="M14 19v-6"/>
+                <path d="M18 19v-12"/><path d="M22 19H2"/>
+              </svg>
+              <span id="topbar-ram-val">—</span>
+            </div>
+            <div class="topbar-metric" id="topbar-temp" title="Temperatura">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+              </svg>
+              <span id="topbar-temp-val">—</span>
+            </div>
+            <div class="topbar-sep"></div>
+          </div>
+
+          {# Hermes status #}
+          <div class="topbar-hermes" id="topbar-hermes" title="Status Hermesa">
+            <span class="topbar-hermes-dot" id="topbar-hermes-dot"></span>
+            <span class="hidden md:inline" id="topbar-hermes-label">⬡ HERMES</span>
+            <span class="topbar-hermes-model hidden lg:inline" id="topbar-hermes-model-label"></span>
+          </div>
+
+          {# Settings icon #}
+          <a href="/settings" class="hidden lg:flex p-2 text-secondary hover:text-primary transition-colors rounded-lg hover:bg-surface-hover" title="Ustawienia">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
           </a>
         </div>
       </header>
@@ -101,15 +205,12 @@
 
   {# ═══════════════════════════════════════════════════════════════════ SCRIPTS ═══ #}
   <script>
-    // HTMX auth — inject token przed każdym requestem
+    // ═══════════════════════════════════════════════════════ AUTH ═══
     document.addEventListener('htmx:configRequest', function(evt) {
       const token = localStorage.getItem('villanyan_token');
-      if (token) {
-        evt.detail.headers['Authorization'] = 'Bearer ' + token;
-      }
+      if (token) evt.detail.headers['Authorization'] = 'Bearer ' + token;
     });
 
-    // HTMX error handling — 401 → redirect to login
     document.addEventListener('htmx:responseError', function(evt) {
       if (evt.detail.xhr.status === 401) {
         localStorage.removeItem('villanyan_token');
@@ -118,48 +219,151 @@
       }
     });
 
-    // Clock
-    setInterval(() => {
-      const el = document.getElementById('clock');
-      if (el) el.textContent = 'villanyan-pi • ' + new Date().toLocaleTimeString('pl-PL');
-    }, 1000);
-
-    // Token auth — sprawdzaj przy ładowaniu strony
-    (function() {
+    (function authGuard() {
       const token = localStorage.getItem('villanyan_token');
       if (!token && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     })();
 
-    // Ollama status in topbar
-    async function checkOllama() {
+    // ═══════════════════════════════════════════════════════ CLOCK ═══
+    setInterval(() => {
+      const el = document.getElementById('topbar-clock');
+      if (el) el.textContent = new Date().toLocaleTimeString('pl-PL');
+    }, 1000);
+
+    // ═══════════════════════════════════════ SYSTEM METRICS (RPi) ═══
+    async function fetchSystemMetrics() {
+      const token = localStorage.getItem('villanyan_token');
+      if (!token) return;
       try {
-        const token = localStorage.getItem('villanyan_token');
-        if (!token) return;
+        const r = await fetch('/api/system/metrics', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (!r.ok) return;
+        const d = await r.json();
+
+        const cpuEl = document.getElementById('topbar-cpu-val');
+        const cpuMetric = document.getElementById('topbar-cpu');
+        if (cpuEl) {
+          const cpu = Math.round(d.cpu_percent || 0);
+          cpuEl.textContent = cpu + '%';
+          cpuMetric?.classList.toggle('topbar-metric-warn', cpu > 60);
+          cpuMetric?.classList.toggle('topbar-metric-danger', cpu > 85);
+        }
+
+        const ramEl = document.getElementById('topbar-ram-val');
+        const ramMetric = document.getElementById('topbar-ram');
+        if (ramEl) {
+          const ram = Math.round(d.mem_percent || 0);
+          ramEl.textContent = ram + '%';
+          ramMetric?.classList.toggle('topbar-metric-warn', ram > 70);
+          ramMetric?.classList.toggle('topbar-metric-danger', ram > 90);
+        }
+
+        const tempEl = document.getElementById('topbar-temp-val');
+        const tempMetric = document.getElementById('topbar-temp');
+        if (tempEl) {
+          const temp = d.temp;
+          if (temp !== null && temp !== undefined) {
+            tempEl.textContent = Math.round(temp) + '°C';
+            tempMetric?.classList.toggle('topbar-metric-warn', temp > 65);
+            tempMetric?.classList.toggle('topbar-metric-danger', temp > 80);
+          } else {
+            tempEl.textContent = '—';
+          }
+        }
+      } catch {}
+    }
+
+    // ═════════════════════════════════════ HERMES / OLLAMA STATUS ═══
+    async function fetchHermesStatus() {
+      const token = localStorage.getItem('villanyan_token');
+      if (!token) return;
+      try {
         const r = await fetch('/api/hermes/ollama-status', {
           headers: { Authorization: 'Bearer ' + token }
         });
         if (!r.ok) return;
         const d = await r.json();
-        const el = document.getElementById('ollama-topbar');
-        if (el) {
-          el.innerHTML = d.online
-            ? '<span class="text-success">⬡ HERMES</span>'
-            : '<span class="text-danger">⬡ OFFLINE</span>';
+
+        const dot = document.getElementById('topbar-hermes-dot');
+        const label = document.getElementById('topbar-hermes-label');
+        const modelLabel = document.getElementById('topbar-hermes-model-label');
+        const sidebarDotColor = document.getElementById('sidebar-hermes-dot-color');
+        const sidebarModel = document.getElementById('sidebar-hermes-model');
+        const sidebarHermesDot = document.getElementById('sidebar-hermes-dot');
+        const topbarHermes = document.getElementById('topbar-hermes');
+
+        if (d.online) {
+          const model = (d.models && d.models[0]) ? d.models[0].replace(':latest','') : 'ollama';
+          if (dot) { dot.className = 'topbar-hermes-dot topbar-hermes-dot-online'; }
+          if (label) { label.innerHTML = '⬡ HERMES'; label.className = 'hidden md:inline text-success'; }
+          if (modelLabel) { modelLabel.textContent = model; modelLabel.style.display = ''; }
+          if (sidebarDotColor) { sidebarDotColor.className = 'w-1.5 h-1.5 rounded-full bg-success'; }
+          if (sidebarModel) sidebarModel.textContent = model;
+          if (sidebarHermesDot) { sidebarHermesDot.textContent = '⬡'; sidebarHermesDot.className = 'nav-badge nav-badge-accent'; }
+          topbarHermes?.classList.remove('topbar-hermes-offline');
+        } else {
+          if (dot) { dot.className = 'topbar-hermes-dot topbar-hermes-dot-offline'; }
+          if (label) { label.innerHTML = '⬡ OFFLINE'; label.className = 'hidden md:inline text-danger'; }
+          if (modelLabel) { modelLabel.textContent = ''; modelLabel.style.display = 'none'; }
+          if (sidebarDotColor) { sidebarDotColor.className = 'w-1.5 h-1.5 rounded-full bg-danger'; }
+          if (sidebarModel) sidebarModel.textContent = 'offline';
+          if (sidebarHermesDot) { sidebarHermesDot.textContent = '○'; sidebarHermesDot.className = 'nav-badge nav-badge-danger'; }
+          topbarHermes?.classList.add('topbar-hermes-offline');
         }
       } catch {}
     }
-    document.addEventListener('DOMContentLoaded', () => {
-      checkOllama();
-      setInterval(checkOllama, 30000);
-    });
 
-    // Logout
+    // ══════════════════════════════════════════ USER INFO + REMINDERS ═══
+    async function fetchUserInfo() {
+      const token = localStorage.getItem('villanyan_token');
+      if (!token) return;
+      try {
+        const r = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } });
+        if (!r.ok) return;
+        const d = await r.json();
+        const usernameEl = document.getElementById('sidebar-username');
+        const avatarEl = document.getElementById('sidebar-avatar');
+        if (usernameEl) usernameEl.textContent = d.username || 'villanyan';
+        if (avatarEl) avatarEl.textContent = (d.username || 'V')[0].toUpperCase();
+      } catch {}
+    }
+
+    async function fetchReminderCount() {
+      const token = localStorage.getItem('villanyan_token');
+      if (!token) return;
+      try {
+        const r = await fetch('/api/reminders?done=false', { headers: { Authorization: 'Bearer ' + token } });
+        if (!r.ok) return;
+        const d = await r.json();
+        const count = d.total ?? (d.items?.length ?? 0);
+        const el = document.getElementById('sidebar-reminder-count');
+        if (el) {
+          el.textContent = count;
+          el.style.display = count > 0 ? '' : 'none';
+        }
+      } catch {}
+    }
+
+    // ═══════════════════════════════════════════ LOGOUT ═══
     document.getElementById('logout-btn')?.addEventListener('click', () => {
       localStorage.removeItem('villanyan_token');
       localStorage.removeItem('villanyan_refresh_token');
       window.location.href = '/login';
+    });
+
+    // ═══════════════════════════════════════════ INIT + POLLING ═══
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchSystemMetrics();
+      fetchHermesStatus();
+      fetchUserInfo();
+      fetchReminderCount();
+
+      setInterval(fetchSystemMetrics, 15000);
+      setInterval(fetchHermesStatus, 30000);
+      setInterval(fetchReminderCount, 60000);
     });
   </script>
   {% block scripts %}{% endblock %}

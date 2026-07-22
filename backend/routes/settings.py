@@ -10,7 +10,7 @@ from backend.core.security import get_current_user
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-ENV_FILE = pathlib.Path(os.path.expanduser("~/projects/villanyan-agent/.env"))
+ENV_FILE = pathlib.Path(__file__).parent.parent.parent / ".env"
 
 EDITABLE_KEYS = frozenset({
     "GEMINI_API_KEY", "OPENAI_API_KEY", "OLLAMA_API_URL",

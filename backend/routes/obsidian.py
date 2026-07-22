@@ -188,7 +188,7 @@ async def list_notes(
     if not _vault_exists():
         return {"notes": [], "folders": [], "vault_exists": False}
     target = (OBSIDIAN_VAULT / path.lstrip("/")).resolve()
-    if not str(target).startswith(str(OBSIDIAN_VAULT.resolve())):
+    if not str(target).startswith(str(OBSIDIAN_VAULT.resolve()) + '/'):
         raise HTTPException(status_code=403, detail="Path traversal")
     notes, folders = [], []
     for item in sorted(target.iterdir()):
@@ -213,7 +213,7 @@ async def read_note(
 ):
     """Read a specific note from Obsidian vault."""
     target = (OBSIDIAN_VAULT / path.lstrip("/")).resolve()
-    if not str(target).startswith(str(OBSIDIAN_VAULT.resolve())):
+    if not str(target).startswith(str(OBSIDIAN_VAULT.resolve()) + '/'):
         raise HTTPException(status_code=403, detail="Path traversal")
     if not target.exists():
         raise HTTPException(status_code=404, detail="Note not found")
@@ -234,7 +234,7 @@ async def write_note(
     path = body.get("path", "").lstrip("/")
     content = body.get("content", "")
     target = (OBSIDIAN_VAULT / path).resolve()
-    if not str(target).startswith(str(OBSIDIAN_VAULT.resolve())):
+    if not str(target).startswith(str(OBSIDIAN_VAULT.resolve()) + '/'):
         raise HTTPException(status_code=403, detail="Path traversal")
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")

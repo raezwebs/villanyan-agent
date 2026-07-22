@@ -21,7 +21,7 @@ def _resolve_path(relative: str) -> pathlib.Path:
     # Normalize: strip leading slashes, prevent going above root
     clean = relative.lstrip("/")
     resolved = (CLOUD_ROOT / clean).resolve()
-    if not str(resolved).startswith(str(CLOUD_ROOT.resolve())):
+    if not str(resolved).startswith(str(CLOUD_ROOT.resolve()) + '/'):
         raise HTTPException(status_code=403, detail="Path traversal detected")
     return resolved
 

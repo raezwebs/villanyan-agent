@@ -17,10 +17,29 @@ CLOUD_ROOT = pathlib.Path(os.path.expanduser("~/cloudilla"))
 
 
 def _resolve_path(relative: str) -> pathlib.Path:
-    """Resolve a path safely — prevents traversal outside CLOUD_ROOT."""
-    # Normalize: strip leading slashes, prevent going above root
+    """Resolve a path safely — prevents traversal outside CLOUD_ROOT.
+    
+    If CLOUD_ROOT or the target path does not exist, returns the path
+    without resolving (avoids 403 on missing directory).
+    """
     clean = relative.lstrip("/")
     resolved = (CLOUD_ROOT / clean).resolve()
+    # If resolved IS CLOUD_ROOT itself (empty path), it's always safe
+    if resolved == CLOUD_ROOT.resolve():
+        return resolved
+    # If it doesn't exist, resolve() may produce an unexpected path;
+    # normalize manually instead
+    if not resolved.exists() or not CLOUD_ROOT.exists():
+        manual = (CLOUD_ROOT / clean)
+        # Still check traversal
+        try:
+            manual_resolved = manual.resolve(strict=False)
+            root_resolved = CLOUD_ROOT.resolve(strict=False)
+            if str(manual_resolved) != str(root_resolved) and not str(manual_resolved).startswith(str(root_resolved) + '/'):
+                raise HTTPException(status_code=403, detail="Path traversal detected")
+        except (ValueError, OSError):
+            pass
+        return manual
     if not str(resolved).startswith(str(CLOUD_ROOT.resolve()) + '/'):
         raise HTTPException(status_code=403, detail="Path traversal detected")
     return resolved
@@ -54,10 +73,14 @@ async def list_files(
     user: User = Depends(get_current_user),
 ):
     """List files in cloud directory."""
+    if not CLOUD_ROOT.exists():
+        return {"path": path or "/", "entries": [], "total": 0,
+                "note": "Cloudilla nie skonfigurowana — ustaw CLOUD_ROOT w .env"}
+    
     target = _resolve_path(path)
 
     if not target.exists():
-        raise HTTPException(status_code=404, detail="Path not found")
+        return {"path": path or "/", "entries": [], "total": 0, "note": "Path not found"}
     if not target.is_dir():
         raise HTTPException(status_code=400, detail="Path is not a directory")
 

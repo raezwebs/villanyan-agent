@@ -77,9 +77,10 @@ async def legacy_system_resources(user: User = Depends(get_current_user)):
 
 @router.get("/hermes/memory")
 async def legacy_hermes_memory(user: User = Depends(get_current_user)):
-    """Legacy endpoint — list memory files."""
+    """Legacy endpoint — list memory files (including ~/.hermes/memories/)."""
     if not HERMES_DIR.exists():
         return {"files": [], "total": 0}
+    memories_dir = HERMES_DIR / "memories"
     memory_files = []
     for f in sorted(HERMES_DIR.glob("*.md")):
         memory_files.append({
@@ -87,6 +88,16 @@ async def legacy_hermes_memory(user: User = Depends(get_current_user)):
             "path": str(f),
             "size": f.stat().st_size,
         })
+    # Also scan ~/.hermes/memories/*.md
+    if memories_dir.exists():
+        for f in sorted(memories_dir.glob("*.md")):
+            if f.name.endswith(".lock"):
+                continue
+            memory_files.append({
+                "name": "memories/" + f.stem,
+                "path": str(f),
+                "size": f.stat().st_size,
+            })
     return {"files": memory_files, "total": len(memory_files)}
 
 

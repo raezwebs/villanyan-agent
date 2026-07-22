@@ -15,41 +15,13 @@ from pydantic import BaseModel, Field
 
 from backend.core.models import User
 from backend.core.security import get_current_user
+from backend.core.llm import generate_response
 
 
 async def _generate_llm_response(prompt: str, model: str | None = None) -> str:
-    """Call Ollama (primary) → Gemini → OpenAI → fallback."""
-    # 1. OLLAMA (primary — lokalny RPi)
-    ollama_url = os.getenv("OLLAMA_API_URL", "http://192.168.1.109:11434")
-    ollama_model = model or os.getenv("OLLAMA_MODEL", "deepseek-r1:1.5b")
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            r = await client.post(
-                f"{ollama_url}/api/generate",
-                json={"model": ollama_model, "prompt": prompt, "stream": False},
-            )
-            if r.status_code == 200:
-                text = r.json().get("response", "").strip()
-                if text:
-                    return text
-    except Exception:
-        pass
-
-    # 2. GEMINI (fallback)
-    try:
-        from google import genai
-        api_key = os.getenv("GEMINI_API_KEY", "")
-        if api_key:
-            client = genai.Client(api_key=api_key)
-            resp = client.models.generate_content(
-                model=model or "gemini-2.0-flash", contents=prompt
-            )
-            return resp.text
-    except Exception:
-        pass
-
-    # 3. Ostateczny fallback
-    return "[Brak połączenia z LLM. Sprawdź OLLAMA_API_URL w .env]"
+    """Generuj odpowiedź via LLM chain (DeepSeek → Ollama → Gemini → OpenAI)."""
+    result, _ = await generate_response(prompt, model)
+    return result
 
 
 class SessionUpdate(BaseModel):

@@ -21,20 +21,46 @@
     </div>
   </div>
 
-  <!-- Główny Model AI -->
+  <!-- DeepSeek API — PRIMARY LLM -->
   <div class="bg-surface border border-border-custom rounded-xl p-5">
-    <h3 class="font-bold mb-4">🤖 Główny Model AI</h3>
-    <select x-model="selectedModel" @change="saveModel()"
-            class="w-full bg-page border border-border-custom rounded-lg p-3 text-primary focus:border-accent outline-none">
-      <option value="" disabled x-show="ollamaModels.length === 0 && ollamaOnline">Ładowanie modeli...</option>
-      <template x-for="m in ollamaModels" :key="m">
-        <option :value="m" x-text="m.replace(':latest','')" :selected="selectedModel === m"></option>
-      </template>
-    </select>
-    <div x-show="!ollamaOnline && ollamaModels.length === 0" class="text-xs text-secondary mt-2 flex items-center gap-2">
-      ⚠ <span>Ollama offline — brak modeli. Skonfiguruj URL w kluczach API i odśwież.</span>
+    <div class="flex items-center gap-2 mb-4">
+      <span style="font-size:1.2rem">🧠</span>
+      <h3 class="font-bold">DeepSeek API</h3>
+      <span class="text-[10px] px-2 py-0.5 rounded-full bg-success/20 text-success font-bold">PRIMARY</span>
+      <a href="https://api-docs.deepseek.com/" target="_blank"
+         class="text-xs text-secondary hover:text-accent ml-auto">docs ↗</a>
     </div>
-    <div class="text-xs text-secondary mt-1">Aktualnie wybrany: <span class="font-mono font-bold text-accent" x-text="selectedModel || 'domyślny'"></span></div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs text-secondary mb-1">API Key</label>
+        <input type="password" x-model="deepseekKey"
+               placeholder="sk-..."
+               class="w-full bg-page border border-border-custom rounded-lg p-3 text-sm font-mono text-primary focus:border-accent outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs text-secondary mb-1">Model</label>
+        <select x-model="deepseekModel"
+                class="w-full bg-page border border-border-custom rounded-lg p-3 text-primary focus:border-accent outline-none">
+          <option value="deepseek-v4-flash">deepseek-v4-flash — szybki ($0.14/1M tokenów)</option>
+          <option value="deepseek-v4-pro">deepseek-v4-pro — dokładny, z thinking ($0.435/1M)</option>
+        </select>
+        <p class="text-xs text-warning mt-1">
+          ⚠ deepseek-chat i deepseek-reasoner są deprecated od 2026-07-24
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button @click="saveDeepSeek()"
+                class="bg-accent text-page px-4 py-2 rounded-lg text-sm font-bold hover:bg-accent/90 transition-colors">
+          Zapisz DeepSeek
+        </button>
+        <button @click="testDeepSeek()"
+                class="border border-border-custom px-4 py-2 rounded-lg text-sm hover:border-accent transition-colors">
+          Test połączenia
+        </button>
+        <span x-show="deepseekMsg" x-text="deepseekMsg" class="text-sm"
+              :class="deepseekMsg.includes('✓') ? 'text-success' : 'text-danger'"></span>
+      </div>
+    </div>
   </div>
 
   <!-- Zmiana hasła -->
@@ -160,6 +186,9 @@ function settingsApp() {
   return {
     lang: localStorage.getItem('villanyan_lang') || 'pl',
     selectedModel: localStorage.getItem('villanyan_model') || '',
+    deepseekKey: '',
+    deepseekModel: 'deepseek-v4-flash',
+    deepseekMsg: '',
     geminiKey: '', openaiKey: '', ollamaUrl: '', ollamaModel: '',
     apiSaveMsg: '',
     oldPassword: '', newPassword: '', newPasswordRepeat: '',
@@ -172,6 +201,8 @@ function settingsApp() {
       // Load settings
       fetch('/api/settings', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(r => r.json()).then(d => {
+          this.deepseekKey = d.DEEPSEEK_API_KEY || '';
+          this.deepseekModel = d.DEEPSEEK_MODEL || 'deepseek-v4-flash';
           this.geminiKey = d.GEMINI_API_KEY || '';
           this.openaiKey = d.OPENAI_API_KEY || '';
           this.ollamaUrl = d.OLLAMA_API_URL || 'http://192.168.1.109:11434';
@@ -210,6 +241,51 @@ function settingsApp() {
     saveModel() {
       localStorage.setItem('villanyan_model', this.selectedModel);
       showToast('✓ Model zapisany w localStorage', 'success');
+    },
+
+    async saveDeepSeek() {
+      this.deepseekMsg = '⏳ Zapisywanie...';
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const r = await fetch('/api/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json',
+                      'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({
+            DEEPSEEK_API_KEY: this.deepseekKey,
+            DEEPSEEK_MODEL: this.deepseekModel,
+          })
+        });
+        if (r.ok) {
+          this.deepseekMsg = '✓ Zapisano — restart serwisu żeby zadziałało';
+        } else {
+          this.deepseekMsg = '✗ Błąd zapisu';
+        }
+      } catch {
+        this.deepseekMsg = '✗ Błąd sieci';
+      }
+      setTimeout(() => this.deepseekMsg = '', 4000);
+    },
+
+    async testDeepSeek() {
+      this.deepseekMsg = '⏳ Testowanie...';
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const r = await fetch('/api/hermes/status',
+          { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!r.ok) { this.deepseekMsg = '✗ Błąd ' + r.status; return; }
+        const d = await r.json();
+        const ds = d.deepseek || {};
+        if (ds.status === 'online') {
+          this.deepseekMsg = `✓ DeepSeek online — model: ${ds.model}`;
+        } else if (ds.status === 'no_key') {
+          this.deepseekMsg = '✗ Brak klucza API — wpisz i zapisz';
+        } else {
+          this.deepseekMsg = `✗ ${ds.error || ds.status}`;
+        }
+      } catch(e) {
+        this.deepseekMsg = '✗ Błąd połączenia';
+      }
     },
 
     async changePassword() {

@@ -301,7 +301,7 @@
       const token = localStorage.getItem('villanyan_token');
       if (!token) return;
       try {
-        const r = await fetch('/api/hermes/ollama-status', {
+        const r = await fetch('/api/hermes/status', {
           headers: { Authorization: 'Bearer ' + token }
         });
         if (!r.ok) return;
@@ -315,13 +315,25 @@
         const sidebarHermesDot = document.getElementById('sidebar-hermes-dot');
         const topbarHermes = document.getElementById('topbar-hermes');
 
-        if (d.online) {
-          const model = (d.models && d.models[0]) ? d.models[0].replace(':latest','') : 'ollama';
+        // Ustal który LLM jest aktywny (pierwszy online)
+        let activeName = null;
+        let activeModel = null;
+        for (const [key, val] of Object.entries(d)) {
+          if (val.status === 'online') {
+            activeName = key;
+            activeModel = val.model || (val.models && val.models[0] ? val.models[0].replace(':latest','') : key);
+            break;
+          }
+        }
+
+        if (activeName) {
+          const icons = { deepseek: '🧠', ollama: '⬡', gemini: '✦', openai: '◎' };
+          const icon = icons[activeName] || '⬡';
           if (dot) { dot.className = 'topbar-hermes-dot topbar-hermes-dot-online'; }
-          if (label) { label.innerHTML = '⬡ HERMES'; label.className = 'hidden md:inline text-success'; }
-          if (modelLabel) { modelLabel.textContent = model; modelLabel.style.display = ''; }
+          if (label) { label.innerHTML = icon + ' HERMES'; label.className = 'hidden md:inline text-success'; }
+          if (modelLabel) { modelLabel.textContent = activeModel; modelLabel.style.display = ''; }
           if (sidebarDotColor) { sidebarDotColor.className = 'w-1.5 h-1.5 rounded-full bg-success'; }
-          if (sidebarModel) sidebarModel.textContent = model;
+          if (sidebarModel) sidebarModel.textContent = activeModel;
           if (sidebarHermesDot) { sidebarHermesDot.textContent = '⬡'; sidebarHermesDot.className = 'nav-badge nav-badge-accent'; }
           topbarHermes?.classList.remove('topbar-hermes-offline');
         } else {

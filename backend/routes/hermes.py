@@ -8,6 +8,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+from backend.core.llm import generate_response, try_deepseek, try_ollama
 from backend.core.models import User
 from backend.core.security import get_current_user
 
@@ -86,22 +87,65 @@ async def _fallback(prompt: str) -> str:
 
 # ── Routes ─────────────────────────────────────────────────────────────
 
+
 @router.post("/message")
 async def send_message(
     body: MessageRequest,
     user: User = Depends(get_current_user),
 ):
-    """Send a message to Hermes LLM — tries Gemini → OpenAI → fallback."""
+    """Send a message to Hermes LLM — DeepSeek → Ollama → Gemini → OpenAI → fallback."""
     prompt = body.content
     model = body.model
 
-    response = await _try_ollama(prompt, model) or await _try_gemini(prompt, model) or await _try_openai(prompt, model) or await _fallback(prompt)
+    response, used_model = await generate_response(prompt, model)
 
     return {
         "response": response,
+        "model_used": used_model,
         "session_id": body.session_id,
         "user_id": user.id,
     }
+
+
+@router.get("/status")
+async def llm_status(user: User = Depends(get_current_user)):
+    """Status wszystkich LLM — który jest dostępny."""
+    deepseek_key = os.getenv("DEEPSEEK_API_KEY", "")
+    ollama_url = os.getenv("OLLAMA_API_URL", "http://192.168.1.109:11434")
+    gemini_key = os.getenv("GEMINI_API_KEY", "")
+    openai_key = os.getenv("OPENAI_API_KEY", "")
+
+    results = {}
+
+    # DeepSeek
+    if deepseek_key and not deepseek_key.startswith("sk-your"):
+        try:
+            from openai import AsyncOpenAI
+            c = AsyncOpenAI(api_key=deepseek_key, base_url="https://api.deepseek.com")
+            r = await c.models.list()
+            results["deepseek"] = {
+                "status": "online",
+                "model": os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
+                "priority": 1,
+            }
+        except Exception as e:
+            results["deepseek"] = {"status": "error", "error": str(e), "priority": 1}
+    else:
+        results["deepseek"] = {"status": "no_key", "priority": 1}
+
+    # Ollama
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as c:
+            r = await c.get(f"{ollama_url}/api/tags")
+            models = [m["name"] for m in r.json().get("models", [])] if r.status_code == 200 else []
+            results["ollama"] = {"status": "online", "models": models, "url": ollama_url, "priority": 2}
+    except Exception:
+        results["ollama"] = {"status": "offline", "url": ollama_url, "priority": 2}
+
+    results["gemini"] = {"status": "configured" if gemini_key else "no_key", "priority": 3}
+    results["openai"] = {"status": "configured" if openai_key else "no_key", "priority": 4}
+
+    return results
 
 
 @router.get("/ollama-status")
@@ -144,12 +188,16 @@ async def get_agent_memory(
     user: User = Depends(get_current_user),
 ):
     """Read a memory file from ~/.hermes/<name>.md."""
-    # Prevent path traversal
     safe_name = pathlib.Path(name).name
     memory_file = HERMES_DIR / f"{safe_name}.md"
 
     if not memory_file.exists():
-        raise HTTPException(status_code=404, detail=f"Memory file {safe_name}.md not found")
+        # Also check in memories/
+        alt = HERMES_DIR / "memories" / f"{safe_name}.md"
+        if alt.exists():
+            memory_file = alt
+        else:
+            raise HTTPException(status_code=404, detail=f"Memory file {safe_name}.md not found")
 
     content = memory_file.read_text(encoding="utf-8")
     return {

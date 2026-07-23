@@ -27,6 +27,7 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
     # Seed admin user if not exists
+    from datetime import UTC, datetime
     from backend.core.security import hash_password
     import os
     password = os.getenv("VILLANYAN_PASSWORD", "")
@@ -45,6 +46,54 @@ async def init_db() -> None:
                     await session.commit()
             except Exception:
                 pass
+
+    # Seed default cost rates if empty
+    async with async_session_factory() as session:
+        try:
+            result = await session.execute(select(CostRate).limit(1))
+            if not result.scalar_one_or_none():
+                default_rates = [
+                    CostRate(
+                        model="deepseek-v4-flash",
+                        price_in=0.14,
+                        price_out=0.14,
+                        currency="USD",
+                        updated_at=datetime.now(UTC),
+                    ),
+                    CostRate(
+                        model="deepseek-v4-pro",
+                        price_in=0.435,
+                        price_out=0.435,
+                        currency="USD",
+                        updated_at=datetime.now(UTC),
+                    ),
+                    CostRate(
+                        model="qwen3.5:9b",
+                        price_in=0.0,
+                        price_out=0.0,
+                        currency="USD",
+                        updated_at=datetime.now(UTC),
+                    ),
+                    CostRate(
+                        model="qwen2.5-coder:7b",
+                        price_in=0.0,
+                        price_out=0.0,
+                        currency="USD",
+                        updated_at=datetime.now(UTC),
+                    ),
+                    CostRate(
+                        model="phi4:14b",
+                        price_in=0.0,
+                        price_out=0.0,
+                        currency="USD",
+                        updated_at=datetime.now(UTC),
+                    ),
+                ]
+                for rate in default_rates:
+                    session.add(rate)
+                await session.commit()
+        except Exception:
+            pass
 
 
 async def get_db():

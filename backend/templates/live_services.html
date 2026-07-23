@@ -3,7 +3,22 @@
 {% block content %}
 <div class="space-y-6">
   <h2 class="text-2xl font-bold mb-2">Status Usług LIVE</h2>
-  <p class="text-sm text-secondary mb-6">Auto-odświeżanie: metryki 10s, Docker 30s, porty 60s</p>
+  <p class="text-sm text-secondary mb-6">Auto-odświeżanie: metryki 10s, Docker 30s, porty 60s, Obsidian 30s</p>
+
+  {# System Metrics — HTMX auto-refresh co 10s #}
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-lg font-bold flex items-center gap-2">📊 Metryki Systemowe</h3>
+      <span class="text-[10px] text-secondary/60" id="metrics-header-time"></span>
+    </div>
+    <div hx-get="/partials/system-metrics" hx-trigger="load, every 10s" hx-swap="innerHTML" id="system-metrics-section">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {% for _ in range(4) %}
+        <div class="animate-pulse bg-surface-hover rounded-xl h-28"></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
 
   {# Docker — HTMX auto-refresh co 30s #}
   <div class="bg-surface border border-border-custom rounded-xl p-5">
@@ -64,7 +79,7 @@
 <script>
 function updateLiveTimestamps() {
   const now = new Date().toLocaleTimeString('pl-PL');
-  ['docker-header-time', 'port-header-time', 'obsidian-header-time'].forEach(id => {
+  ['metrics-header-time', 'docker-header-time', 'port-header-time', 'obsidian-header-time'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = 'ostatnie: ' + now;
   });

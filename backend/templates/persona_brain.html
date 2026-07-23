@@ -211,7 +211,17 @@ function personaBrain() {
         if (infoRes.ok) this.agentInfo = await infoRes.json();
         if (filesRes.ok) {
           const d = await filesRes.json();
-          this.memoryFiles = d.files || [];
+          // Deduplicate: prefer root files, skip memories/ duplicates
+          const seen = new Set();
+          this.memoryFiles = (d.files || []).filter(f => {
+            if (seen.has(f.name)) return false;
+            seen.add(f.name);
+            // Add subfolder hint for files in memories/
+            if (f.path.startsWith('memories/')) {
+              f.subfolder = true;
+            }
+            return true;
+          });
         } else {
           this.loadError = 'Nie udało się wczytać plików (HTTP ' + filesRes.status + ')';
         }

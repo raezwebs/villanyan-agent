@@ -200,5 +200,41 @@ function githubPanel() {
     }
   };
 }
+
+function dashboardWelcome() {
+  return {
+    username: '',
+    pendingReminders: 0,
+    doneReminders: 0,
+    totalReminders: 0,
+    loading: true,
+    init() {
+      this.loadDashboard();
+    },
+    async loadDashboard() {
+      const token = localStorage.getItem('villanyan_token');
+      if (!token) return;
+      this.loading = true;
+      try {
+        const [meRes, remRes] = await Promise.all([
+          fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } }),
+          fetch('/api/reminders', { headers: { Authorization: 'Bearer ' + token } })
+        ]);
+        if (meRes.ok) {
+          const me = await meRes.json();
+          this.username = me.username || 'Użytkownik';
+        }
+        if (remRes.ok) {
+          const d = await remRes.json();
+          const items = d.items || [];
+          this.totalReminders = d.total || items.length;
+          this.pendingReminders = items.filter(r => !r.done).length;
+          this.doneReminders = items.filter(r => r.done).length;
+        }
+      } catch {}
+      this.loading = false;
+    }
+  };
+}
 </script>
 {% endblock %}

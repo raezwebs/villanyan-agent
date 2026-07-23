@@ -401,23 +401,19 @@ async def partial_system_summary(request: Request):
 
 @_partial_router.get("/dashboard-welcome")
 async def partial_dashboard_welcome(request: Request):
-    """HTMX partial: welcome + reminder counts — server-rendered."""
-    from sqlalchemy import select, func
-    from backend.core.models import Reminder
-    from backend.core.db import async_session_factory
-
+    """HTMX partial: welcome + reminder counts from Obsidian vault."""
     pending = 0
     done = 0
-    try:
-        async with async_session_factory() as session:
-            total = await session.execute(select(func.count(Reminder.id)))
-            total_cnt = total.scalar() or 0
-            done_r = await session.execute(select(func.count(Reminder.id)).where(Reminder.done == True))
-            done_cnt = done_r.scalar() or 0
-            pending = total_cnt - done_cnt
-            done = done_cnt
-    except Exception:
-        pass
+    reminders_file = pathlib.Path(os.path.expanduser("~/obsidian-vault/Hermes/Przypomnienia.md"))
+    if reminders_file.exists():
+        for line in reminders_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("- [x]"):
+                done += 1
+            elif line.startswith("- [ ]") or line.startswith("- "):
+                pending += 1
 
     return _render_template(request, "partials/dashboard_welcome.html",
         pending=pending,
@@ -428,18 +424,29 @@ async def partial_dashboard_welcome(request: Request):
 
 @_partial_router.get("/cron-table")
 async def partial_cron_table(request: Request):
-    """HTMX partial: cron jobs table — server-rendered."""
-    from backend.core.db import async_session_factory
-    from backend.core.models import CronJob
-    from sqlalchemy import select
-
+    """HTMX partial: cron jobs from Hermes ~/.hermes/cron/jobs.json."""
     jobs = []
-    try:
-        async with async_session_factory() as session:
-            result = await session.execute(select(CronJob).order_by(CronJob.created_at.desc()))
-            jobs = result.scalars().all()
-    except Exception:
-        pass
+    cron_file = pathlib.Path(os.path.expanduser("~/.hermes/cron/jobs.json"))
+    if cron_file.exists():
+        try:
+            import json as _json
+            data = _json.loads(cron_file.read_text(encoding="utf-8"))
+            raw_jobs = data.get("jobs", data) if isinstance(data, dict) else data
+            if isinstance(raw_jobs, list):
+                for j in raw_jobs:
+                    schedule = j.get("schedule", {})
+                    if isinstance(schedule, dict):
+                        expr = schedule.get("expr", schedule.get("display", "—"))
+                    else:
+                        expr = str(schedule)
+                    jobs.append({
+                        "name": j.get("name", "?"),
+                        "id": j.get("id", ""),
+                        "schedule": {"display": expr},
+                        "active": True,
+                    })
+        except Exception:
+            pass
 
     return _render_template(request, "partials/cron_table.html", jobs=jobs)
 
@@ -449,18 +456,29 @@ async def partial_cron_table(request: Request):
 
 @_partial_router.get("/reminder-list")
 async def partial_reminder_list(request: Request):
-    """HTMX partial: reminders list — server-rendered."""
-    from backend.core.db import async_session_factory
-    from backend.core.models import Reminder
-    from sqlalchemy import select
-
+    """HTMX partial: reminders from Obsidian vault Hermes/Przypomnienia.md."""
     reminders = []
-    try:
-        async with async_session_factory() as session:
-            result = await session.execute(select(Reminder).order_by(Reminder.priority.desc(), Reminder.created_at.desc()))
-            reminders = result.scalars().all()
-    except Exception:
-        pass
+    reminders_file = pathlib.Path(os.path.expanduser("~/obsidian-vault/Hermes/Przypomnienia.md"))
+    if reminders_file.exists():
+        for line in reminders_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("- [ ]"):
+                text = line[5:].strip()
+                important = "**[VERIFY]" in text or "**[WAŻNE]" in text
+                # Extract tag if in **bold**
+                tag = ""
+                if "**" in text:
+                    parts = text.split("**")
+                    if len(parts) >= 3:
+                        tag = parts[1].strip("[]")
+                reminders.append({"id": len(reminders) + 1, "text": text, "done": False, "important": important, "tag": tag})
+            elif line.startswith("- [x]"):
+                text = line[5:].strip()
+                reminders.append({"id": len(reminders) + 1, "text": text, "done": True, "important": False, "tag": ""})
+            elif line.startswith("- "):
+                reminders.append({"id": len(reminders) + 1, "text": line[2:].strip(), "done": False, "important": False, "tag": ""})
 
     return _render_template(request, "partials/reminder_list.html", reminders=reminders)
 
@@ -470,21 +488,20 @@ async def partial_reminder_list(request: Request):
 
 @_partial_router.get("/reminder-stats")
 async def partial_reminder_stats(request: Request):
-    """HTMX partial: reminder statistics — server-rendered."""
-    from backend.core.db import async_session_factory
-    from backend.core.models import Reminder
-    from sqlalchemy import select, func
-
+    """HTMX partial: reminder statistics from Obsidian vault."""
     total = 0
     done_count = 0
-    try:
-        async with async_session_factory() as session:
-            t = await session.execute(select(func.count(Reminder.id)))
-            total = t.scalar() or 0
-            d = await session.execute(select(func.count(Reminder.id)).where(Reminder.done == True))
-            done_count = d.scalar() or 0
-    except Exception:
-        pass
+    reminders_file = pathlib.Path(os.path.expanduser("~/obsidian-vault/Hermes/Przypomnienia.md"))
+    if reminders_file.exists():
+        for line in reminders_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("- [ ]") or line.startswith("- "):
+                total += 1
+            elif line.startswith("- [x]"):
+                total += 1
+                done_count += 1
 
     return _render_template(request, "partials/reminder_stats.html",
         total=total, pending=total - done_count, done=done_count)

@@ -1,0 +1,90 @@
+<div id="persona-brain" class="space-y-6">
+  {# Agent info card #}
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xl font-black">⬡</div>
+      <div>
+        <div class="font-bold text-lg">{{ agent_info.name }}</div>
+        <div class="text-xs text-secondary">Home: {{ agent_info.home }}</div>
+      </div>
+      <div class="ml-auto text-xs">
+        <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full {{ 'bg-success/10 text-success' if agent_info.config_exists else 'bg-warning/10 text-warning' }}">
+          <span class="w-1.5 h-1.5 rounded-full {{ 'bg-success' if agent_info.config_exists else 'bg-warning' }}"></span>
+          {{ 'config.yaml ✓' if agent_info.config_exists else 'Brak config.yaml' }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {# Zakładki z plikami #}
+  {% if files %}
+  <div class="flex overflow-x-auto gap-1 border-b border-border-custom pb-0">
+    {% for f in files %}
+    <a href="/persona?file={{ f.name }}"
+       class="px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 shrink-0
+              {{ 'border-accent text-accent bg-accent/5' if active_file == f.name else 'border-transparent text-secondary hover:text-primary hover:bg-surface-hover' }}">
+      {{ f.name }}
+      <span class="text-[10px] text-secondary/60 ml-1">({{ f.size }}B)</span>
+      {% if f.subfolder %}<span class="text-[10px] text-secondary/40">📁</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-12 text-secondary text-sm">
+    Brak plików pamięci agenta w ~/.hermes/
+  </div>
+  {% endif %}
+
+  {# Edytor — gdy wybrany plik #}
+  {% if active_file and file_name %}
+  <div class="bg-surface border border-border-custom rounded-xl overflow-hidden">
+    {% if file_saved %}
+    <div class="px-5 py-2 bg-success/10 border-b border-success/20 text-success text-sm font-bold flex items-center gap-2">
+      ✓ Zapisano {{ active_file }}
+    </div>
+    {% endif %}
+    <form method="post" action="/api/hermes/agent-memory/{{ active_file }}/save" hx-post="/api/hermes/agent-memory/{{ active_file }}/save"
+          hx-target="#persona-brain" hx-swap="outerHTML" class="p-0">
+      <div class="relative">
+        <textarea name="content" class="w-full bg-page text-sm font-mono text-primary resize-none outline-none p-5"
+                  style="min-height: 60vh" placeholder="Zawartość pliku...">{{ file_content }}</textarea>
+        <div class="absolute bottom-3 right-3 text-[10px] text-secondary/60">{{ file_content|length }} znaków</div>
+      </div>
+      <div class="flex items-center gap-2 px-5 py-3 border-t border-border-custom bg-surface">
+        <button type="submit" class="bg-accent text-page px-5 py-2 rounded-lg text-sm font-bold hover:bg-accent/90 transition-colors flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Zapisz
+        </button>
+        <a href="/persona" class="bg-surface border border-border-custom px-4 py-2 rounded-lg text-sm hover:bg-surface-hover transition-colors">Anuluj</a>
+        <div class="ml-auto flex items-center gap-1 bg-page rounded-lg p-0.5 border border-border-custom">
+          <a href="/persona?file={{ active_file }}" class="px-3 py-1 text-xs rounded-md transition-colors font-medium bg-accent text-page">Edycja</a>
+          <a href="/persona?file={{ active_file }}&preview=1" class="px-3 py-1 text-xs rounded-md transition-colors font-medium text-secondary hover:text-primary">Podgląd</a>
+        </div>
+      </div>
+    </form>
+
+    {# Podgląd #}
+    {% if request.query_params.get('preview') == '1' %}
+    <div class="p-5 border-t border-border-custom bg-page text-sm prose prose-invert max-w-none">
+      <div class="space-y-2">
+      {% for line in file_content.split('\n') %}
+        {% if line.startswith('### ') %}
+        <h3 class="text-lg font-bold mt-4 mb-2">{{ line[4:] }}</h3>
+        {% elif line.startswith('## ') %}
+        <h2 class="text-xl font-bold mt-5 mb-3">{{ line[3:] }}</h2>
+        {% elif line.startswith('# ') %}
+        <h1 class="text-2xl font-bold mt-6 mb-4">{{ line[2:] }}</h1>
+        {% elif line.startswith('- ') %}
+        <li class="ml-4 text-secondary">• {{ line[2:] }}</li>
+        {% elif line.strip() == '' %}
+        <br/>
+        {% else %}
+        <p class="mb-1">{{ line }}</p>
+        {% endif %}
+      {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

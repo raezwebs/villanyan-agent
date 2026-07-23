@@ -47,7 +47,8 @@ async def reminders_page(request: Request):
 
 @router.get("/persona", include_in_schema=False)
 async def persona_page(request: Request):
-    return _render(request, "persona_brain.html", active_view="persona")
+    file = request.query_params.get("file", "")
+    return _render(request, "persona_brain.html", active_view="persona", selected_file=file)
 
 
 @router.get("/settings", include_in_schema=False)

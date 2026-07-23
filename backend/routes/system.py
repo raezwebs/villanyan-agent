@@ -498,3 +498,109 @@ async def partial_session_list(request: Request):
     """HTMX partial for session list."""
     return _render_template(request, "partials/session_list.html")
 
+
+# ── Persona brain partials ─────────────────────────────────────────────
+
+
+@_partial_router.get("/persona-files")
+async def partial_persona_files(request: Request):
+    """HTMX partial: list memory files + agent info."""
+    HERMES_DIR = pathlib.Path(os.path.expanduser("~/.hermes"))
+    files = []
+
+    # Root .md files
+    for f in sorted(HERMES_DIR.glob("*.md")):
+        files.append({"name": f.stem, "path": str(f.name), "size": f.stat().st_size, "subfolder": False})
+
+    # memories/ subfolder
+    memories_dir = HERMES_DIR / "memories"
+    if memories_dir.exists():
+        for f in sorted(memories_dir.glob("*.md")):
+            files.append({"name": f.stem, "path": str(f.relative_to(HERMES_DIR)), "size": f.stat().st_size, "subfolder": True})
+
+    # Deduplicate
+    seen = set()
+    unique_files = []
+    for f in files:
+        if f["name"] not in seen:
+            seen.add(f["name"])
+            unique_files.append(f)
+
+    # Agent info
+    config_path = HERMES_DIR / "config.yaml"
+    agent_info = {
+        "name": "Hermes Agent",
+        "home": str(HERMES_DIR),
+        "config_exists": config_path.exists(),
+    }
+
+    # Active file from query param
+    active_file = request.query_params.get("file", "")
+
+    file_content = ""
+    file_name = ""
+    file_size = 0
+    file_saved = request.query_params.get("saved", "") == "true"
+
+    if active_file:
+        safe_name = pathlib.Path(active_file).name
+        fpath = HERMES_DIR / f"{safe_name}.md"
+        if not fpath.exists():
+            fpath = HERMES_DIR / "memories" / f"{safe_name}.md"
+        if fpath.exists():
+            file_content = fpath.read_text(encoding="utf-8")
+            file_name = safe_name
+            file_size = fpath.stat().st_size
+
+    return _render_template(request, "partials/persona_brain.html",
+        files=unique_files,
+        agent_info=agent_info,
+        active_file=active_file,
+        file_content=file_content,
+        file_name=file_name,
+        file_size=file_size,
+        file_saved=file_saved,
+    )
+
+
+@_partial_router.post("/persona-file/{name}/save")
+async def partial_persona_save(request: Request, name: str):
+    """HTMX POST: save memory file content."""
+    HERMES_DIR = pathlib.Path(os.path.expanduser("~/.hermes"))
+    form = await request.form()
+    content = form.get("content", "")
+    safe_name = pathlib.Path(name).name
+    memory_file = HERMES_DIR / f"{safe_name}.md"
+    memory_file.parent.mkdir(parents=True, exist_ok=True)
+    memory_file.write_text(content, encoding="utf-8")
+
+    # Refresh partial with saved flag
+    files = []
+    for f in sorted(HERMES_DIR.glob("*.md")):
+        files.append({"name": f.stem, "path": str(f.name), "size": f.stat().st_size, "subfolder": False})
+    memories_dir = HERMES_DIR / "memories"
+    if memories_dir.exists():
+        for f in sorted(memories_dir.glob("*.md")):
+            files.append({"name": f.stem, "path": str(f.relative_to(HERMES_DIR)), "size": f.stat().st_size, "subfolder": True})
+    seen = set()
+    unique_files = []
+    for f in files:
+        if f["name"] not in seen: seen.add(f["name"]); unique_files.append(f)
+
+    config_path = HERMES_DIR / "config.yaml"
+    agent_info = {
+        "name": "Hermes Agent",
+        "home": str(HERMES_DIR),
+        "config_exists": config_path.exists(),
+    }
+
+    return _render_template(request, "partials/persona_brain.html",
+        files=unique_files,
+        agent_info=agent_info,
+        active_file=safe_name,
+        file_content=content,
+        file_name=safe_name,
+        file_size=len(content),
+        file_saved=True,
+    )
+

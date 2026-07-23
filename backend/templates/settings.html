@@ -268,7 +268,7 @@ function settingsApp() {
     },
 
     async testDeepSeek() {
-      this.deepseekMsg = '⏳ Testowanie...';
+      this.deepseekMsg = '⏳ Testowanie połączenia...';
       const token = localStorage.getItem('villanyan_token');
       try {
         const r = await fetch('/api/hermes/status',
@@ -277,15 +277,19 @@ function settingsApp() {
         const d = await r.json();
         const ds = d.deepseek || {};
         if (ds.status === 'online') {
-          this.deepseekMsg = `✓ DeepSeek online — model: ${ds.model}`;
+          this.deepseekMsg = '✓ DeepSeek online · ' + (ds.model || 'deepseek-v4-flash') +
+            ' · thinking: ' + (ds.thinking ? 'tak' : 'nie');
         } else if (ds.status === 'no_key') {
-          this.deepseekMsg = '✗ Brak klucza API — wpisz i zapisz';
+          this.deepseekMsg = '✗ Brak klucza — wpisz DEEPSEEK_API_KEY i zapisz';
+        } else if (ds.status === 'error') {
+          this.deepseekMsg = '✗ Błąd API: ' + (ds.error || 'nieznany');
         } else {
-          this.deepseekMsg = `✗ ${ds.error || ds.status}`;
+          this.deepseekMsg = '✗ Status: ' + ds.status;
         }
       } catch(e) {
-        this.deepseekMsg = '✗ Błąd połączenia';
+        this.deepseekMsg = '✗ Błąd sieci: ' + e.message;
       }
+      setTimeout(() => this.deepseekMsg = '', 5000);
     },
 
     async changePassword() {

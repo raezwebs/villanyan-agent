@@ -47,10 +47,9 @@ async def try_deepseek(prompt: str, model: Optional[str] = None) -> Optional[str
             messages=[{"role": "user", "content": prompt}],
             max_tokens=4096,
         )
-        # V4-pro z thinking mode
-        if model_name == "deepseek-v4-pro":
-            kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
-            kwargs["reasoning_effort"] = "high"
+        # Both v4-flash and v4-pro support thinking mode
+        kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+        kwargs["reasoning_effort"] = "max" if model_name == "deepseek-v4-pro" else "high"
         resp = await client.chat.completions.create(**kwargs)
         text = resp.choices[0].message.content
         return text.strip() if text else None

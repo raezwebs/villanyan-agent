@@ -18,10 +18,11 @@ from backend.core.security import get_current_user
 from backend.core.llm import generate_response
 
 
-async def _generate_llm_response(prompt: str, model: str | None = None) -> str:
-    """Generuj odpowiedź via LLM chain (DeepSeek → Ollama → Gemini → OpenAI)."""
-    result, _ = await generate_response(prompt, model)
-    return result
+async def _generate_llm_response(prompt: str, model: str | None = None) -> tuple[str, str]:
+    """Generuj odpowiedź via LLM chain (DeepSeek → Ollama → Gemini → OpenAI).
+    Zwraca (odpowiedź, model_used)."""
+    result, used = await generate_response(prompt, model)
+    return result, used
 
 
 class SessionUpdate(BaseModel):
@@ -244,7 +245,7 @@ async def send_message(
         conn.close()
 
     # Generate LLM response (async, outside the first transaction)
-    llm_reply = await _generate_llm_response(body.content)
+    llm_reply, model_used = await _generate_llm_response(body.content)
 
     # Save assistant reply
     conn2 = sqlite3.connect(str(db_path))
@@ -263,6 +264,7 @@ async def send_message(
             "session_id": session_id,
             "role": "assistant",
             "content": llm_reply,
+            "model_used": model_used,
             "timestamp": now2,
             "user_message_id": user_msg_id,
         }

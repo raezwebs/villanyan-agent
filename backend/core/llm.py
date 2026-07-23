@@ -42,13 +42,16 @@ async def try_deepseek(prompt: str, model: Optional[str] = None) -> Optional[str
     )
     try:
         client = AsyncOpenAI(api_key=api_key, base_url=DEEPSEEK_BASE_URL)
-        resp = await client.chat.completions.create(
+        kwargs = dict(
             model=model_name,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=4096,
-            reasoning_effort="high",
-            extra_body={"thinking": {"type": "enabled"}},
         )
+        # V4-pro z thinking mode
+        if model_name == "deepseek-v4-pro":
+            kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
+            kwargs["reasoning_effort"] = "high"
+        resp = await client.chat.completions.create(**kwargs)
         text = resp.choices[0].message.content
         return text.strip() if text else None
     except Exception as e:
@@ -155,3 +158,55 @@ async def generate_response(
         f"lub połączenie z Ollama ({os.getenv('OLLAMA_API_URL')})",
         "fallback",
     )
+
+
+# ── check_provider_status (sprawdza dostępność LLM bez duplikacji) ────
+
+
+async def check_provider_status() -> dict:
+    """Sprawdź dostępność wszystkich dostawców LLM.
+    Zwraca dict {nazwa: {status, model?, priority}}.
+    Używany przez GET /api/hermes/status.
+    """
+    results = {}
+
+    # DeepSeek
+    api_key = os.getenv("DEEPSEEK_API_KEY", "")
+    if api_key and not api_key.startswith("sk-your"):
+        try:
+            from openai import AsyncOpenAI
+            c = AsyncOpenAI(api_key=api_key, base_url=DEEPSEEK_BASE_URL)
+            await c.models.list()
+            results["deepseek"] = {
+                "status": "online",
+                "model": os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash"),
+                "thinking": True,
+                "priority": 1,
+            }
+        except Exception as e:
+            results["deepseek"] = {"status": "error", "error": str(e), "priority": 1}
+    else:
+        results["deepseek"] = {"status": "no_key", "priority": 1}
+
+    # Ollama
+    ollama_url = os.getenv("OLLAMA_API_URL", "http://192.168.1.109:11434")
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as c:
+            r = await c.get(f"{ollama_url}/api/tags")
+            models = [m["name"] for m in r.json().get("models", [])] if r.status_code == 200 else []
+            if models:
+                results["ollama"] = {"status": "online", "models": models, "url": ollama_url, "priority": 2}
+            else:
+                results["ollama"] = {"status": "offline", "url": ollama_url, "priority": 2}
+    except Exception:
+        results["ollama"] = {"status": "offline", "url": ollama_url, "priority": 2}
+
+    # Gemini
+    gemini_key = os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
+    results["gemini"] = {"status": "configured" if gemini_key else "no_key", "priority": 3}
+
+    # OpenAI
+    openai_key = os.getenv("OPENAI_API_KEY", "")
+    results["openai"] = {"status": "configured" if openai_key else "no_key", "priority": 4}
+
+    return results

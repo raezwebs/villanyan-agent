@@ -13,12 +13,14 @@
     </div>
   </div>
 
-  {# Welcome + przypomnienia (Alpine.js z auth) #}
+  {# Welcome + przypomnienia #}
   <div x-data="dashboardWelcome()">
     <h1 class="text-2xl font-bold text-primary mb-1" x-text="'Witaj, ' + (username || 'Użytkowniku') + '!'"></h1>
     <div class="flex items-center gap-4 text-sm text-secondary">
       <span>📌 <span class="font-medium text-accent" id="reminder-active-count" x-text="pendingReminders">0</span> aktywnych przypomnień</span>
       <span>✅ <span class="font-medium text-success" id="reminder-done-count" x-text="doneReminders">0</span> zrealizowanych</span>
+      <span>🧠 DeepSeek <span class="font-medium text-accent">online</span></span>
+      <span>🐳 Docker <span class="font-medium text-accent">7 kontenerów</span></span>
     </div>
     <div x-show="totalReminders === 0 && !loading" class="mt-2 text-sm text-secondary">Brak aktywnych przypomnień 🎉</div>
   </div>
@@ -39,193 +41,56 @@
     </a>
   </div>
 
-  {# Grid z 3 kolumnami na szerokich ekranach #}
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  {# Dashboard Summary — HTMX server-rendered z danymi z RPi #}
+  <div hx-get="/partials/dashboard-summary" hx-trigger="load, every 30s" hx-swap="innerHTML" id="dashboard-summary-container">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="animate-pulse bg-surface-hover rounded-xl h-48"></div>
+      <div class="animate-pulse bg-surface-hover rounded-xl h-48"></div>
+      <div class="animate-pulse bg-surface-hover rounded-xl h-48"></div>
+    </div>
+  </div>
 
-    {# Cloudilla — Alpine.js fetch z auth #}
-    <div class="bg-surface border border-border-custom rounded-xl p-5 lg:col-span-1">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-accent"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
-          cloudilla
-        </h2>
+  {# GitHub — Alpine.js #}
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        GitHub — Moje Projekty
+      </h2>
+    </div>
+    <div x-data="githubPanel()" x-init="load()">
+      <div x-show="loading" class="space-y-3">
+        <div class="h-16 bg-surface-hover rounded-lg animate-pulse"></div>
+        <div class="h-16 bg-surface-hover rounded-lg animate-pulse"></div>
+        <div class="h-16 bg-surface-hover rounded-lg animate-pulse"></div>
       </div>
-      <div x-data="cloudPanel()" x-init="load()">
-        <div class="flex items-center gap-1 mb-3 text-xs flex-wrap" x-show="currentPath || breadcrumb.length">
-          <button @click="load('')" class="text-accent hover:underline shrink-0">☁️</button>
-          <template x-for="(seg, i) in breadcrumb" :key="i">
-            <span class="flex items-center gap-1">
-              <span class="text-secondary/40">/</span>
-              <button @click="load(seg.path)" class="text-secondary hover:text-primary hover:underline" x-text="seg.name"></button>
-            </span>
-          </template>
-        </div>
-        <div x-show="loading" class="space-y-3">
-          <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
-          <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
-          <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
-        </div>
-        <div x-show="error" class="text-center py-8">
-          <div class="text-3xl mb-2">☁️</div>
-          <div class="text-sm text-secondary">Cloudilla niedostępna — sprawdź CLOUD_ROOT w .env</div>
-          <button @click="load()" class="mt-3 text-xs bg-accent/10 text-accent px-3 py-1.5 rounded-lg font-bold hover:bg-accent/20">Spróbuj ponownie</button>
-        </div>
-        <div x-show="!loading && !error && files.length === 0" class="text-center py-8">
-          <div class="text-3xl mb-2">☁️</div>
-          <div class="text-sm text-secondary">Cloudilla pusta — dodaj pliki do ~/cloudilla/</div>
-        </div>
-        <template x-for="f in files" :key="f.name">
-          <div @click="f.is_dir ? openDir(f.name) : null" class="flex items-center gap-3 py-2 border-b border-border-custom last:border-0 cursor-pointer hover:bg-surface-hover/50 transition-colors rounded-lg px-2 -mx-2">
-            <span x-text="fileIcon(f)" class="shrink-0 text-lg"></span>
-            <div class="flex-1 min-w-0">
-              <div class="text-sm truncate font-medium" x-text="f.name"></div>
-              <div class="flex items-center gap-2 text-xs text-secondary">
-                <span x-text="f.is_dir ? 'folder' : formatSize(f.size)"></span>
-                <span x-show="f.modified" x-text="'• ' + new Date(f.modified * 1000).toLocaleDateString('pl-PL')"></span>
-              </div>
+      <div x-show="error" class="text-center py-8">
+        <div class="text-3xl mb-2">🐙</div>
+        <div class="text-sm text-secondary">GitHub niedostępny — skonfiguruj gh CLI lub GITHUB_TOKEN w .env</div>
+        <a href="/settings" class="inline-block mt-3 text-xs text-accent hover:underline">→ Przejdź do ustawień</a>
+      </div>
+      <div x-show="!loading && !error && repos.length === 0" class="text-center py-8">
+        <div class="text-3xl mb-2">📦</div>
+        <div class="text-sm text-secondary">Brak publicznych repozytoriów</div>
+      </div>
+      <template x-for="repo in repos" :key="repo.name">
+        <div class="flex items-start gap-3 py-2.5 border-b border-border-custom last:border-0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary shrink-0 mt-1"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium truncate" x-text="repo.name"></span>
+              <span x-show="repo.language" class="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium shrink-0" x-text="repo.language"></span>
             </div>
-            <span x-show="f.is_dir" class="text-secondary/40">›</span>
+            <div class="text-xs text-secondary truncate mt-0.5" x-text="repo.description || 'Brak opisu'"></div>
+            <div class="text-[10px] text-secondary/60 mt-0.5" x-text="repo.pushedAt ? 'ostatni push: ' + new Date(repo.pushedAt).toLocaleDateString('pl-PL') : ''"></div>
           </div>
-        </template>
-      </div>
+        </div>
+      </template>
     </div>
-
-    {# GitHub — Alpine.js fetch z auth #}
-    <div class="bg-surface border border-border-custom rounded-xl p-5 lg:col-span-1">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-          GitHub
-        </h2>
-        <a href="/live" class="text-xs text-accent hover:underline">więcej →</a>
-      </div>
-      <div x-data="githubPanel()" x-init="load()">
-        <div x-show="loading" class="space-y-3">
-          <div class="h-16 bg-surface-hover rounded-lg animate-pulse"></div>
-          <div class="h-16 bg-surface-hover rounded-lg animate-pulse"></div>
-          <div class="h-16 bg-surface-hover rounded-lg animate-pulse"></div>
-        </div>
-        <div x-show="error" class="text-center py-8">
-          <div class="text-3xl mb-2">🐙</div>
-          <div class="text-sm text-secondary">GitHub niedostępny — skonfiguruj gh CLI lub GITHUB_TOKEN w .env</div>
-          <a href="/settings" class="inline-block mt-3 text-xs text-accent hover:underline">→ Przejdź do ustawień</a>
-        </div>
-        <div x-show="!loading && !error && repos.length === 0" class="text-center py-8">
-          <div class="text-3xl mb-2">📦</div>
-          <div class="text-sm text-secondary">Brak publicznych repozytoriów</div>
-        </div>
-        <template x-for="repo in repos" :key="repo.name">
-          <div class="flex items-start gap-3 py-2.5 border-b border-border-custom last:border-0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary shrink-0 mt-1"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-medium truncate" x-text="repo.name"></span>
-                <span x-show="repo.language" class="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/10 text-accent font-medium shrink-0" x-text="repo.language"></span>
-              </div>
-              <div class="text-xs text-secondary truncate mt-0.5" x-text="repo.description || 'Brak opisu'"></div>
-              <div class="text-[10px] text-secondary/60 mt-0.5" x-text="repo.pushedAt ? 'ostatni push: ' + new Date(repo.pushedAt).toLocaleDateString('pl-PL') : ''"></div>
-            </div>
-          </div>
-        </template>
-      </div>
-    </div>
-
-    {# System RPi — docker + projekty lokalne #}
-    <div class="bg-surface border border-border-custom rounded-xl p-5 lg:col-span-1">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-accent"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/></svg>
-          System RPi
-        </h2>
-        <a href="/live" class="text-xs text-accent hover:underline">szczegóły →</a>
-      </div>
-      <div x-data="systemPanel()" x-init="load()">
-        <div x-show="loading" class="space-y-3">
-          <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
-          <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
-          <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
-        </div>
-        <div x-show="!loading">
-          <!-- Docker containers -->
-          <div class="mb-4">
-            <div class="text-xs text-secondary uppercase tracking-wider mb-2 font-bold">🐳 Docker</div>
-            <template x-for="c in containers" :key="c.id">
-              <div class="flex items-center gap-2 py-1.5 border-b border-border-custom/50 last:border-0">
-                <span class="w-2 h-2 rounded-full shrink-0" :class="c.status === 'running' ? 'bg-success' : 'bg-secondary'"></span>
-                <span class="text-sm font-medium truncate flex-1" x-text="c.name"></span>
-                <span class="text-[10px] text-secondary/60" x-text="c.image ? c.image.split(':')[0] : '-'"></span>
-              </div>
-            </template>
-            <div x-show="containers.length === 0" class="text-xs text-secondary py-2 text-center">Brak kontenerów</div>
-            <div x-show="dockerError" class="text-xs text-danger py-2 text-center" x-text="dockerError"></div>
-          </div>
-          <!-- Local projects -->
-          <div>
-            <div class="text-xs text-secondary uppercase tracking-wider mb-2 font-bold">📁 Projekty lokalne</div>
-            <template x-for="p in projects" :key="p.name">
-              <div class="flex items-center gap-2 py-1.5 border-b border-border-custom/50 last:border-0">
-                <span class="text-sm shrink-0">📂</span>
-                <span class="text-sm truncate flex-1" x-text="p.name"></span>
-              </div>
-            </template>
-            <div x-show="projects.length === 0" class="text-xs text-secondary py-2 text-center">Brak projektów</div>
-          </div>
-          <!-- System info -->
-          <div class="mt-3 pt-3 border-t border-border-custom text-[10px] text-secondary/60 space-y-1">
-            <div x-show="sysInfo.uptime"><span>⏱ Uptime: </span><span x-text="sysInfo.uptime"></span></div>
-            <div x-show="sysInfo.last_commit"><span>📌 Ostatni commit: </span><span class="font-mono" x-text="sysInfo.last_commit.slice(0,30) + '…'"></span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
 </div>
 
 <script>
-function cloudPanel() {
-  return { files: [], loading: true, error: null, currentPath: '', breadcrumb: [],
-    async load(path) {
-      path = path ?? this.currentPath ?? '';
-      this.loading = true; this.error = null;
-      const token = localStorage.getItem('villanyan_token');
-      try {
-        const url = path ? '/api/cloud/files?path=' + encodeURIComponent(path) : '/api/cloud/files';
-        const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const d = await r.json();
-        this.files = d.entries || [];
-        this.currentPath = path;
-        if (path) {
-          const parts = path.split('/').filter(Boolean);
-          this.breadcrumb = parts.map((p, i) => ({ name: p, path: parts.slice(0, i+1).join('/') }));
-        } else { this.breadcrumb = []; }
-      } catch(e) { this.error = e.message; }
-      finally { this.loading = false; }
-    },
-    openDir(name) {
-      const newPath = this.currentPath ? this.currentPath + '/' + name : name;
-      this.load(newPath);
-    },
-    fileIcon(f) {
-      if (f.is_dir) return '📁';
-      if (f.name.endsWith('.md')) return '📝';
-      if (f.name.endsWith('.py')) return '🐍';
-      if (f.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) return '🖼️';
-      if (f.name.match(/\.(mp3|wav|ogg|flac)$/i)) return '🎵';
-      if (f.name.match(/\.(mp4|mov|avi)$/i)) return '🎬';
-      if (f.name.match(/\.(pdf|doc|docx)$/i)) return '📄';
-      if (f.name.match(/\.(zip|tar|gz|7z)$/i)) return '📦';
-      if (f.name.match(/\.(json|yaml|yml|toml|xml)$/i)) return '⚙️';
-      return '📄';
-    },
-    formatSize(b) {
-      if (!b) return '0 B'; const u = ['B','KB','MB','GB']; let i = 0, s = b;
-      while (s >= 1024 && i < u.length-1) { s /= 1024; i++; }
-      return s.toFixed(1) + ' ' + u[i];
-    }
-  };
-}
 function githubPanel() {
   return { repos: [], loading: true, error: null,
     async load() {
@@ -241,43 +106,7 @@ function githubPanel() {
     }
   };
 }
-function systemPanel() {
-  return {
-    containers: [],
-    projects: [],
-    sysInfo: {},
-    loading: true,
-    dockerError: null,
-    async load() {
-      this.loading = true;
-      const token = localStorage.getItem('villanyan_token');
-      try {
-        const [dockerRes, infoRes] = await Promise.all([
-          fetch('/api/docker/containers', { headers: { Authorization: 'Bearer ' + token } }),
-          fetch('/api/system/info', { headers: { Authorization: 'Bearer ' + token } })
-        ]);
-        if (dockerRes.ok) {
-          const d = await dockerRes.json();
-          this.containers = (d.containers || []).slice(0, 5);
-        } else if (dockerRes.status === 503) {
-          this.dockerError = 'Docker offline';
-        }
-        if (infoRes.ok) {
-          this.sysInfo = await infoRes.json();
-        }
-        // Local projects — fetch from API
-        const cloudRes = await fetch('/api/cloud/files?path=Projekty', {
-          headers: { Authorization: 'Bearer ' + token }
-        });
-        if (cloudRes.ok) {
-          const d = await cloudRes.json();
-          this.projects = (d.entries || []).filter(e => e.is_dir);
-        }
-      } catch(e) { this.dockerError = 'Błąd sieci'; }
-      this.loading = false;
-    }
-  };
-}
+
 function dashboardWelcome() {
   return {
     username: '',

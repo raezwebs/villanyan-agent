@@ -170,7 +170,70 @@ async def partial_system_metrics(request: Request):
     )
 
 
-# ── Docker list partial ────────────────────────────────────────────────
+# ── Dashboard summary ──────────────────────────────────────────────────
+
+
+@_partial_router.get("/dashboard-summary")
+async def partial_dashboard_summary(request: Request):
+    """HTMX partial: dashboard summary — docker, system, obsidian."""
+    import json
+    docker_html = ""
+    try:
+        import docker
+        client = docker.from_env()
+        containers = client.containers.list(all=True)[:5]
+        for c in containers:
+            status_class = "bg-success" if c.status == "running" else "bg-secondary"
+            image_name = c.image.tags[0].split(":")[0] if c.image.tags else c.image.short_id[:12]
+            docker_html += (
+                f'<div class="flex items-center gap-2 py-1.5 border-b border-border-custom/50 last:border-0">'
+                f'<span class="w-2 h-2 rounded-full shrink-0 {status_class}"></span>'
+                f'<span class="text-sm font-medium truncate flex-1">{c.name}</span>'
+                f'<span class="text-[10px] text-secondary/60">{image_name}</span>'
+                f"</div>"
+            )
+        client.close()
+    except Exception:
+        docker_html = '<div class="text-xs text-secondary/60 py-2 text-center">Docker offline</div>'
+
+    if not docker_html:
+        docker_html = '<div class="text-xs text-secondary py-2 text-center">Brak kontenerów</div>'
+
+    # System info
+    import subprocess
+    commit = ""
+    try:
+        r = subprocess.run(["git", "log", "--oneline", "-1"], capture_output=True, text=True, timeout=5,
+                          cwd=str(PROJECT_DIR))
+        commit = r.stdout.strip()[:50] if r.returncode == 0 else ""
+    except: pass
+
+    import psutil
+    boot_time = psutil.boot_time()
+    uptime_seconds = datetime.now(UTC).timestamp() - boot_time
+    days = int(uptime_seconds // 86400)
+    hours = int((uptime_seconds % 86400) // 3600)
+    uptime_str = f"{days}d {hours}h" if days else f"{hours}h"
+
+    temp = _get_vcgencmd_temp() or "—"
+
+    # Obsidian
+    obsidian_ok = "✓" if pathlib.Path(os.path.expanduser("~/obsidian-vault/Hermes/Przypomnienia.md")).exists() else "✗"
+    obsidian_path = "/home/vv-rp/obsidian-vault"
+
+    # Cloudilla
+    cloud_root = pathlib.Path(os.path.expanduser("~/cloudilla"))
+    cloud_count = len(list(cloud_root.iterdir())) if cloud_root.exists() else 0
+
+    return _render_template(request, "partials/dashboard_summary.html",
+        docker_html=docker_html,
+        uptime=uptime_str,
+        temp=temp,
+        commit=commit,
+        obsidian_ok=obsidian_ok,
+        obsidian_path=obsidian_path,
+        cloud_count=cloud_count,
+    )
 
 
 @_partial_router.get("/docker-list")

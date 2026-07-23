@@ -238,8 +238,23 @@ async def partial_dashboard_summary(request: Request):
 
 @_partial_router.get("/docker-list")
 async def partial_docker_list(request: Request):
-    """HTMX partial for Docker containers list."""
-    return _render_template(request, "partials/docker_list.html")
+    """HTMX partial for Docker containers list — server-rendered."""
+    import docker
+    try:
+        client = docker.from_env()
+        containers = client.containers.list(all=True)
+        client.close()
+        return _render_template(request, "partials/docker_list.html",
+            containers=containers,
+            docker_error=None,
+            total=len(containers),
+        )
+    except Exception as e:
+        return _render_template(request, "partials/docker_list.html",
+            containers=[],
+            docker_error=str(e),
+            total=0,
+        )
 
 
 # ── Port table partial ─────────────────────────────────────────────────
@@ -247,8 +262,63 @@ async def partial_docker_list(request: Request):
 
 @_partial_router.get("/port-table")
 async def partial_port_table(request: Request):
-    """HTMX partial for port listing."""
-    return _render_template(request, "partials/port_table.html")
+    """HTMX partial for port listing — server-rendered."""
+    import subprocess
+    ports = []
+    try:
+        result = subprocess.run(["ss", "-tlnp"], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                if not line or line.startswith("State") or line.startswith("Netid"):
+                    continue
+                parts = line.split()
+                if len(parts) < 4: continue
+                local = parts[3]
+                if ":" not in local: continue
+                port_str = local.split("]:")[-1] if "[" in local else local.split(":")[-1]
+                try:
+                    port = int(port_str)
+                except ValueError:
+                    continue
+                process_info = parts[4] if len(parts) >= 5 else ""
+                ports.append({"port": port, "local": local, "process": process_info})
+        ports.sort(key=lambda p: p["port"])
+    except Exception:
+        ports = []
+
+    KNOWN_PORTS = {
+        22: "SSH", 80: "HTTP", 443: "HTTPS", 445: "SMB",
+        7890: "villanyan", 8642: "hermes-gateway",
+        11434: "ollama", 27124: "obsidian-mcp",
+        6080: "novnc", 5900: "VNC",
+        8080: "nextcloud", 8081: "static-site",
+        9000: "portainer",
+    }
+    return _render_template(request, "partials/port_table.html",
+        ports=ports,
+        known_ports=KNOWN_PORTS,
+    )
+
+
+# ── Obsidian status partial ─────────────────────────────────────────────
+
+
+@_partial_router.get("/obsidian-status")
+async def partial_obsidian_status(request: Request):
+    """HTMX partial for Obsidian vault status — server-rendered."""
+    vault_path = pathlib.Path(os.path.expanduser("~/obsidian-vault"))
+    vault_ok = vault_path.exists()
+    reminders_ok = (vault_path / "Hermes" / "Przypomnienia.md").exists()
+    note_count = 0
+    if vault_ok:
+        note_count = len(list(vault_path.rglob("*.md")))
+    return _render_template(request, "partials/obsidian_status.html",
+        vault_ok=vault_ok,
+        vault_path=str(vault_path),
+        reminders_ok=reminders_ok,
+        note_count=note_count,
+    )
 
 
 # ── Cron table partial ─────────────────────────────────────────────────

@@ -1,43 +1,55 @@
 <div id="docker-list" class="space-y-2">
-  <div class="flex items-center justify-between mb-3">
-    <span class="text-xs text-secondary">Kontenery Docker</span>
-    <span class="text-[10px] text-secondary/60" id="docker-refresh-time"></span>
+  {% if docker_error %}
+  <div class="bg-surface border border-danger/30 rounded-xl p-4 text-center">
+    <div class="text-2xl mb-1">🐳</div>
+    <div class="text-xs text-secondary">Docker offline lub brak uprawnień: {{ docker_error }}</div>
   </div>
-  <div id="docker-container-list"></div>
+  {% elif containers %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-secondary text-xs uppercase tracking-wider border-b border-border-custom">
+          <th class="text-left py-2 px-3">Nazwa</th>
+          <th class="text-left py-2 px-3 hidden md:table-cell">Obraz</th>
+          <th class="text-left py-2 px-3">Status</th>
+          <th class="text-left py-2 px-3 hidden md:table-cell">Porty</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in containers %}
+        <tr class="border-b border-border-custom/50 hover:bg-surface-hover/30">
+          <td class="py-2 px-3 font-bold text-sm">{{ c.name }}</td>
+          <td class="py-2 px-3 hidden md:table-cell text-xs text-secondary font-mono truncate max-w-[200px]">
+            {{ c.image.tags[0] if c.image.tags else c.image.short_id[:12] }}
+          </td>
+          <td class="py-2 px-3">
+            <span class="inline-flex items-center gap-1.5 text-xs">
+              {% if c.status == "running" %}
+              <span class="w-2 h-2 rounded-full bg-success"></span>
+              {% else %}
+              <span class="w-2 h-2 rounded-full bg-secondary"></span>
+              {% endif %}
+              {{ c.status }}
+            </span>
+          </td>
+          <td class="py-2 px-3 hidden md:table-cell text-xs font-mono text-secondary">
+            {% if c.ports %}
+              {% for container_port, mappings in c.ports.items() %}
+                {% for m in (mappings or []) %}
+                  {{ m.get("host_port", "") if m else "" }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+              {% endfor %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="text-xs text-secondary/60 mt-2">łącznie {{ total }} kontenerów</div>
+  {% else %}
+  <div class="text-center text-secondary py-6 text-sm">Brak kontenerów Docker</div>
+  {% endif %}
 </div>
-<script>
-(async function() {
-  const container = document.getElementById('docker-container-list');
-  const refreshEl = document.getElementById('docker-refresh-time');
-  if (refreshEl) refreshEl.textContent = 'odświeżono: ' + new Date().toLocaleTimeString('pl-PL');
-  try {
-    const res = await fetch('/api/docker/containers', {
-      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
-    });
-    if (!res.ok) {
-      container.innerHTML = '<div class="bg-surface border border-border-custom rounded-xl p-6 text-center"><div class="text-2xl mb-2">🐳</div><div class="text-sm text-secondary">Docker offline lub brak uprawnień</div></div>';
-      return;
-    }
-    const data = await res.json();
-    if (!data.containers || data.containers.length === 0) {
-      container.innerHTML = '<div class="text-center text-secondary py-6 text-sm">Brak kontenerów Docker</div>';
-      return;
-    }
-    let html = '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-secondary text-xs uppercase tracking-wider border-b border-border-custom"><th class="text-left py-3 px-4">Nazwa</th><th class="text-left py-3 px-4 hidden md:table-cell">Obraz</th><th class="text-left py-3 px-4">Status</th><th class="text-left py-3 px-4 hidden md:table-cell">Porty</th></tr></thead><tbody>';
-    for (const c of data.containers) {
-      const isRunning = c.status === 'running';
-      const portsHtml = Object.entries(c.ports || {}).map(([k, v]) => {
-        const mappings = v.map(m => m.host_port).filter(Boolean).join(', ');
-        return k.replace('/tcp','') + (mappings ? '→' + mappings : '');
-      }).join(', ') || '-';
-      html += '<tr>' +
-        '<td class="py-3 px-4"><div class="font-bold text-sm">' + c.name + '</div></td>' +
-        '<td class="py-3 px-4 hidden md:table-cell text-xs text-secondary font-mono truncate max-w-[200px]">' + (c.image || '-') + '</td>' +
-        '<td class="py-3 px-4"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full ' + (isRunning ? 'bg-success' : 'bg-secondary') + '"></span>' + c.status + '</span></td>' +
-        '<td class="py-3 px-4 hidden md:table-cell text-xs text-secondary font-mono">' + portsHtml + '</td></tr>';
-    }
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-  } catch { container.innerHTML = '<div class="bg-surface border border-border-custom rounded-xl p-6 text-center"><div class="text-2xl mb-2">🐳</div><div class="text-sm text-secondary">Docker offline lub brak uprawnień</div></div>'; }
-})();
-</script>

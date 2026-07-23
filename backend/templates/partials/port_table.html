@@ -1,51 +1,40 @@
 <div id="port-table" class="space-y-2">
-  <div class="flex items-center justify-between mb-3">
-    <span class="text-xs text-secondary">Nasłuchujące porty</span>
-    <span class="text-[10px] text-secondary/60" id="port-refresh-time"></span>
-  </div>
+  {% if ports %}
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
       <thead>
         <tr class="text-secondary text-xs uppercase tracking-wider border-b border-border-custom">
-          <th class="text-left py-3 px-4">Port</th>
-          <th class="text-left py-3 px-4">Usługa</th>
-          <th class="text-left py-3 px-4">Stan</th>
-          <th class="text-left py-3 px-4 hidden md:table-cell">Protokół</th>
+          <th class="text-left py-2 px-3">Port</th>
+          <th class="text-left py-2 px-3">Usługa</th>
+          <th class="text-left py-2 px-3">Stan</th>
+          <th class="text-left py-2 px-3 hidden md:table-cell">Protokół</th>
         </tr>
       </thead>
-      <tbody id="port-table-body"></tbody>
+      <tbody>
+        {% for p in ports %}
+        {% set svc = known_ports.get(p.port, "") %}
+        {% set is_known = svc != "" %}
+        <tr class="border-b border-border-custom/50 hover:bg-surface-hover/30">
+          <td class="py-2 px-3 font-mono font-bold {{ 'text-accent' if is_known else '' }}">{{ p.port }}</td>
+          <td class="py-2 px-3 text-sm {{ 'text-accent font-medium' if is_known else 'text-secondary' }}">
+            {{ svc if is_known else '—' }}
+          </td>
+          <td class="py-2 px-3">
+            <span class="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success">LISTEN</span>
+          </td>
+          <td class="py-2 px-3 hidden md:table-cell">
+            <span class="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent">TCP</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
   </div>
+  <div class="text-xs text-secondary/60 mt-2">łącznie {{ ports|length }} nasłuchujących portów TCP</div>
+  {% else %}
+  <div class="text-center text-secondary py-8 text-sm">
+    <div class="text-2xl mb-1">🔌</div>
+    <div>Brak nasłuchujących portów lub brak uprawnień do odczytu</div>
+  </div>
+  {% endif %}
 </div>
-<script>
-(async function() {
-  const tbody = document.getElementById('port-table-body');
-  const refreshEl = document.getElementById('port-refresh-time');
-  if (refreshEl) refreshEl.textContent = 'odświeżono: ' + new Date().toLocaleTimeString('pl-PL');
-
-  const KNOWN_PORTS = { 7890: 'villanyan', 11434: 'ollama', 80: 'HTTP', 443: 'HTTPS', 22: 'SSH', 8080: 'nextcloud', 8081: 'static_site', 8642: 'hermes-gateway', 27124: 'obsidian-mcp', 6080: 'novnc', 5900: 'vnc' };
-
-  try {
-    const res = await fetch('/api/network/ports', {
-      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
-    });
-    if (!res.ok) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-8">Brak dostępu</td></tr>'; return; }
-    const data = await res.json();
-    const allPorts = [...(data.tcp || []), ...(data.udp || [])];
-    if (allPorts.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary py-8">Brak nasłuchujących portów</td></tr>';
-      return;
-    }
-    allPorts.sort((a, b) => a.port - b.port);
-    tbody.innerHTML = allPorts.map(p => {
-      const svc = KNOWN_PORTS[p.port] || '-';
-      const isKnown = svc !== '-';
-      return '<tr>' +
-        '<td class="py-2 px-4 font-mono font-bold' + (isKnown ? ' text-accent' : '') + '">' + p.port + '</td>' +
-        '<td class="py-2 px-4 text-sm' + (isKnown ? ' text-accent font-medium' : ' text-secondary') + '">' + svc + '</td>' +
-        '<td class="py-2 px-4"><span class="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success">LISTEN</span></td>' +
-        '<td class="py-2 px-4 hidden md:table-cell"><span class="text-xs px-2 py-0.5 rounded-full ' + (p.protocol === 'tcp' ? 'bg-accent/10 text-accent' : 'bg-warning/10 text-warning') + '">' + (p.protocol || 'tcp').toUpperCase() + '</span></td></tr>';
-    }).join('');
-  } catch { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-8">Błąd połączenia</td></tr>'; }
-})();
-</script>

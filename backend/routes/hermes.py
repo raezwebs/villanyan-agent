@@ -8,7 +8,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from backend.core.llm import generate_response, try_deepseek, try_ollama
+from backend.core.llm import generate_response
 from backend.core.models import User
 from backend.core.security import get_current_user
 
@@ -25,64 +25,6 @@ class MessageRequest(BaseModel):
 
 class MemoryUpdate(BaseModel):
     content: str
-
-
-# ── LLM helpers ────────────────────────────────────────────────────────
-
-async def _try_ollama(prompt: str, model: str | None = None) -> str | None:
-    """Try local Ollama (primary LLM on RPi)."""
-    ollama_url = os.getenv("OLLAMA_API_URL", "http://192.168.1.109:11434")
-    ollama_model = model or os.getenv("OLLAMA_MODEL", "deepseek-r1:1.5b")
-    try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            r = await client.post(
-                f"{ollama_url}/api/generate",
-                json={"model": ollama_model, "prompt": prompt, "stream": False},
-            )
-            if r.status_code == 200:
-                text = r.json().get("response", "").strip()
-                return text if text else None
-    except Exception:
-        return None
-
-
-async def _try_gemini(prompt: str, model: str | None = None) -> str | None:
-    """Try Google Gemini for completion."""
-    try:
-        from google import genai
-        api_key = os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
-        if not api_key:
-            return None
-        client = genai.Client(api_key=api_key)
-        model_name = model or "gemini-2.0-flash"
-        response = client.models.generate_content(model=model_name, contents=prompt)
-        return response.text
-    except Exception:
-        return None
-
-
-async def _try_openai(prompt: str, model: str | None = None) -> str | None:
-    """Try OpenAI for completion."""
-    try:
-        from openai import OpenAI
-        api_key = os.getenv("OPENAI_API_KEY", "")
-        if not api_key:
-            return None
-        client = OpenAI(api_key=api_key)
-        model_name = model or "gpt-4o-mini"
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=4096,
-        )
-        return response.choices[0].message.content
-    except Exception:
-        return None
-
-
-async def _fallback(prompt: str) -> str:
-    """Last-resort fallback — return prompt echo."""
-    return f"[Fallback — no LLM configured] Received: {prompt[:100]}..."
 
 
 # ── Routes ─────────────────────────────────────────────────────────────

@@ -1,0 +1,22 @@
+<div id="debtor-list">
+  {% if debtors %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-secondary text-xs uppercase tracking-wider border-b border-border-custom">
+          <th class="text-left py-2 px-3">Osoba</th>
+          <th class="text-right py-2 px-3">Kwota</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in debtors %}
+        <tr class="border-b border-border-custom/50 hover:bg-surface-hover/30">
+          <td class="py-2 px-3 font-medium">{{ d.name }}</td>
+          <td class="py-2 px-3 text-right font-mono font-bold text-danger">{{ d.amount }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>

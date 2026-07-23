@@ -69,5 +69,15 @@
       <div class="h-14 bg-surface-hover rounded-xl animate-pulse"></div>
     </div>
   </div>
+
+  {# Dłużnicy #}
+  <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <h3 class="font-bold text-lg">💰 Dłużnicy</h3>
+    </div>
+    <div id="debtor-list" hx-get="/partials/debtor-list" hx-trigger="load, every 30s" hx-swap="innerHTML">
+      <div class="animate-pulse h-16 bg-surface-hover rounded-lg"></div>
+    </div>
+  </div>
 </div>
 {% endblock %}

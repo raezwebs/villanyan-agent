@@ -510,6 +510,22 @@ async def partial_reminder_list(request: Request):
     return _render_template(request, "partials/reminder_list.html", reminders=reminders)
 
 
+@_partial_router.get("/debtor-list")
+async def partial_debtor_list(request: Request):
+    """HTMX partial: debtors from Obsidian vault Hermes/Dluznicy.md."""
+    debtors = []
+    debtors_file = pathlib.Path(os.path.expanduser("~/obsidian-vault/Hermes/Dluznicy.md"))
+    if debtors_file.exists():
+        for line in debtors_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("|") and "zł" in line and "Osoba" not in line and "---" not in line:
+                parts = [p.strip() for p in line.split("|") if p.strip()]
+                if len(parts) >= 2:
+                    debtors.append({"name": parts[0], "amount": parts[1]})
+
+    return _render_template(request, "partials/debtor_list.html", debtors=debtors)
+
+
 # ── Reminder stats partial (serwer-render) ─────────────────────────────
 
 

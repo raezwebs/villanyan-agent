@@ -39,11 +39,11 @@
     </a>
   </div>
 
-  {# Grid #}
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  {# Grid z 3 kolumnami na szerokich ekranach #}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
     {# Cloudilla — Alpine.js fetch z auth #}
-    <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <div class="bg-surface border border-border-custom rounded-xl p-5 lg:col-span-1">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-bold flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-accent"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
@@ -51,7 +51,6 @@
         </h2>
       </div>
       <div x-data="cloudPanel()" x-init="load()">
-        {# Breadcrumb #}
         <div class="flex items-center gap-1 mb-3 text-xs flex-wrap" x-show="currentPath || breadcrumb.length">
           <button @click="load('')" class="text-accent hover:underline shrink-0">☁️</button>
           <template x-for="(seg, i) in breadcrumb" :key="i">
@@ -61,24 +60,20 @@
             </span>
           </template>
         </div>
-        {# Skeleton loading #}
         <div x-show="loading" class="space-y-3">
           <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
           <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
           <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
         </div>
-        {# Error state #}
         <div x-show="error" class="text-center py-8">
           <div class="text-3xl mb-2">☁️</div>
           <div class="text-sm text-secondary">Cloudilla niedostępna — sprawdź CLOUD_ROOT w .env</div>
           <button @click="load()" class="mt-3 text-xs bg-accent/10 text-accent px-3 py-1.5 rounded-lg font-bold hover:bg-accent/20">Spróbuj ponownie</button>
         </div>
-        {# Empty state #}
         <div x-show="!loading && !error && files.length === 0" class="text-center py-8">
           <div class="text-3xl mb-2">☁️</div>
           <div class="text-sm text-secondary">Cloudilla pusta — dodaj pliki do ~/cloudilla/</div>
         </div>
-        {# Files list #}
         <template x-for="f in files" :key="f.name">
           <div @click="f.is_dir ? openDir(f.name) : null" class="flex items-center gap-3 py-2 border-b border-border-custom last:border-0 cursor-pointer hover:bg-surface-hover/50 transition-colors rounded-lg px-2 -mx-2">
             <span x-text="fileIcon(f)" class="shrink-0 text-lg"></span>
@@ -96,32 +91,29 @@
     </div>
 
     {# GitHub — Alpine.js fetch z auth #}
-    <div class="bg-surface border border-border-custom rounded-xl p-5">
+    <div class="bg-surface border border-border-custom rounded-xl p-5 lg:col-span-1">
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-bold flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
-          Moje Projekty
+          GitHub
         </h2>
+        <a href="/live" class="text-xs text-accent hover:underline">więcej →</a>
       </div>
       <div x-data="githubPanel()" x-init="load()">
-        {# Skeleton loading #}
         <div x-show="loading" class="space-y-3">
           <div class="h-16 bg-surface-hover rounded-lg animate-pulse"></div>
           <div class="h-16 bg-surface-hover rounded-lg animate-pulse"></div>
           <div class="h-16 bg-surface-hover rounded-lg animate-pulse"></div>
         </div>
-        {# Error state #}
         <div x-show="error" class="text-center py-8">
           <div class="text-3xl mb-2">🐙</div>
           <div class="text-sm text-secondary">GitHub niedostępny — skonfiguruj gh CLI lub GITHUB_TOKEN w .env</div>
           <a href="/settings" class="inline-block mt-3 text-xs text-accent hover:underline">→ Przejdź do ustawień</a>
         </div>
-        {# Empty state #}
         <div x-show="!loading && !error && repos.length === 0" class="text-center py-8">
           <div class="text-3xl mb-2">📦</div>
           <div class="text-sm text-secondary">Brak publicznych repozytoriów</div>
         </div>
-        {# Repos list #}
         <template x-for="repo in repos" :key="repo.name">
           <div class="flex items-start gap-3 py-2.5 border-b border-border-custom last:border-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary shrink-0 mt-1"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
@@ -135,6 +127,55 @@
             </div>
           </div>
         </template>
+      </div>
+    </div>
+
+    {# System RPi — docker + projekty lokalne #}
+    <div class="bg-surface border border-border-custom rounded-xl p-5 lg:col-span-1">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-accent"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/></svg>
+          System RPi
+        </h2>
+        <a href="/live" class="text-xs text-accent hover:underline">szczegóły →</a>
+      </div>
+      <div x-data="systemPanel()" x-init="load()">
+        <div x-show="loading" class="space-y-3">
+          <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
+          <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
+          <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
+        </div>
+        <div x-show="!loading">
+          <!-- Docker containers -->
+          <div class="mb-4">
+            <div class="text-xs text-secondary uppercase tracking-wider mb-2 font-bold">🐳 Docker</div>
+            <template x-for="c in containers" :key="c.id">
+              <div class="flex items-center gap-2 py-1.5 border-b border-border-custom/50 last:border-0">
+                <span class="w-2 h-2 rounded-full shrink-0" :class="c.status === 'running' ? 'bg-success' : 'bg-secondary'"></span>
+                <span class="text-sm font-medium truncate flex-1" x-text="c.name"></span>
+                <span class="text-[10px] text-secondary/60" x-text="c.image ? c.image.split(':')[0] : '-'"></span>
+              </div>
+            </template>
+            <div x-show="containers.length === 0" class="text-xs text-secondary py-2 text-center">Brak kontenerów</div>
+            <div x-show="dockerError" class="text-xs text-danger py-2 text-center" x-text="dockerError"></div>
+          </div>
+          <!-- Local projects -->
+          <div>
+            <div class="text-xs text-secondary uppercase tracking-wider mb-2 font-bold">📁 Projekty lokalne</div>
+            <template x-for="p in projects" :key="p.name">
+              <div class="flex items-center gap-2 py-1.5 border-b border-border-custom/50 last:border-0">
+                <span class="text-sm shrink-0">📂</span>
+                <span class="text-sm truncate flex-1" x-text="p.name"></span>
+              </div>
+            </template>
+            <div x-show="projects.length === 0" class="text-xs text-secondary py-2 text-center">Brak projektów</div>
+          </div>
+          <!-- System info -->
+          <div class="mt-3 pt-3 border-t border-border-custom text-[10px] text-secondary/60 space-y-1">
+            <div x-show="sysInfo.uptime"><span>⏱ Uptime: </span><span x-text="sysInfo.uptime"></span></div>
+            <div x-show="sysInfo.last_commit"><span>📌 Ostatni commit: </span><span class="font-mono" x-text="sysInfo.last_commit.slice(0,30) + '…'"></span></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -200,7 +241,43 @@ function githubPanel() {
     }
   };
 }
-
+function systemPanel() {
+  return {
+    containers: [],
+    projects: [],
+    sysInfo: {},
+    loading: true,
+    dockerError: null,
+    async load() {
+      this.loading = true;
+      const token = localStorage.getItem('villanyan_token');
+      try {
+        const [dockerRes, infoRes] = await Promise.all([
+          fetch('/api/docker/containers', { headers: { Authorization: 'Bearer ' + token } }),
+          fetch('/api/system/info', { headers: { Authorization: 'Bearer ' + token } })
+        ]);
+        if (dockerRes.ok) {
+          const d = await dockerRes.json();
+          this.containers = (d.containers || []).slice(0, 5);
+        } else if (dockerRes.status === 503) {
+          this.dockerError = 'Docker offline';
+        }
+        if (infoRes.ok) {
+          this.sysInfo = await infoRes.json();
+        }
+        // Local projects — fetch from API
+        const cloudRes = await fetch('/api/cloud/files?path=Projekty', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (cloudRes.ok) {
+          const d = await cloudRes.json();
+          this.projects = (d.entries || []).filter(e => e.is_dir);
+        }
+      } catch(e) { this.dockerError = 'Błąd sieci'; }
+      this.loading = false;
+    }
+  };
+}
 function dashboardWelcome() {
   return {
     username: '',
@@ -208,9 +285,7 @@ function dashboardWelcome() {
     doneReminders: 0,
     totalReminders: 0,
     loading: true,
-    init() {
-      this.loadDashboard();
-    },
+    init() { this.loadDashboard(); },
     async loadDashboard() {
       const token = localStorage.getItem('villanyan_token');
       if (!token) return;
@@ -220,10 +295,7 @@ function dashboardWelcome() {
           fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token } }),
           fetch('/api/reminders', { headers: { Authorization: 'Bearer ' + token } })
         ]);
-        if (meRes.ok) {
-          const me = await meRes.json();
-          this.username = me.username || 'Użytkownik';
-        }
+        if (meRes.ok) { const me = await meRes.json(); this.username = me.username || 'Użytkownik'; }
         if (remRes.ok) {
           const d = await remRes.json();
           const items = d.items || [];

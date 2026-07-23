@@ -428,26 +428,66 @@ async def partial_dashboard_welcome(request: Request):
 
 @_partial_router.get("/cron-table")
 async def partial_cron_table(request: Request):
-    """HTMX partial for cron jobs table."""
-    return _render_template(request, "partials/cron_table.html")
+    """HTMX partial: cron jobs table — server-rendered."""
+    from backend.core.db import async_session_factory
+    from backend.core.models import CronJob
+    from sqlalchemy import select
+
+    jobs = []
+    try:
+        async with async_session_factory() as session:
+            result = await session.execute(select(CronJob).order_by(CronJob.created_at.desc()))
+            jobs = result.scalars().all()
+    except Exception:
+        pass
+
+    return _render_template(request, "partials/cron_table.html", jobs=jobs)
 
 
-# ── Reminder list partial ──────────────────────────────────────────────
+# ── Reminder list partial (serwer-render) ──────────────────────────────
 
 
 @_partial_router.get("/reminder-list")
 async def partial_reminder_list(request: Request):
-    """HTMX partial for reminders list."""
-    return _render_template(request, "partials/reminder_list.html")
+    """HTMX partial: reminders list — server-rendered."""
+    from backend.core.db import async_session_factory
+    from backend.core.models import Reminder
+    from sqlalchemy import select
+
+    reminders = []
+    try:
+        async with async_session_factory() as session:
+            result = await session.execute(select(Reminder).order_by(Reminder.priority.desc(), Reminder.created_at.desc()))
+            reminders = result.scalars().all()
+    except Exception:
+        pass
+
+    return _render_template(request, "partials/reminder_list.html", reminders=reminders)
 
 
-# ── Reminder stats partial ─────────────────────────────────────────────
+# ── Reminder stats partial (serwer-render) ─────────────────────────────
 
 
 @_partial_router.get("/reminder-stats")
 async def partial_reminder_stats(request: Request):
-    """HTMX partial for reminder statistics."""
-    return _render_template(request, "partials/reminder_stats.html")
+    """HTMX partial: reminder statistics — server-rendered."""
+    from backend.core.db import async_session_factory
+    from backend.core.models import Reminder
+    from sqlalchemy import select, func
+
+    total = 0
+    done_count = 0
+    try:
+        async with async_session_factory() as session:
+            t = await session.execute(select(func.count(Reminder.id)))
+            total = t.scalar() or 0
+            d = await session.execute(select(func.count(Reminder.id)).where(Reminder.done == True))
+            done_count = d.scalar() or 0
+    except Exception:
+        pass
+
+    return _render_template(request, "partials/reminder_stats.html",
+        total=total, pending=total - done_count, done=done_count)
 
 
 # ── Session list partial ───────────────────────────────────────────────

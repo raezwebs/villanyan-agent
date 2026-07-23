@@ -1,5 +1,14 @@
-<div class="text-secondary text-xs text-center py-2" id="reminder-stats-content">
-  <span class="inline-flex items-center gap-2">
-    <span class="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin inline-block"></span>
-  </span>
+<div id="reminder-stats-content" class="grid grid-cols-3 gap-4">
+  <div class="bg-surface border border-border-custom rounded-xl p-4 text-center">
+    <div class="text-xs text-secondary">Wszystkie</div>
+    <div class="text-2xl font-black text-accent">{{ total }}</div>
+  </div>
+  <div class="bg-surface border border-border-custom rounded-xl p-4 text-center">
+    <div class="text-xs text-secondary">Do zrobienia</div>
+    <div class="text-2xl font-black text-warning">{{ pending }}</div>
+  </div>
+  <div class="bg-surface border border-border-custom rounded-xl p-4 text-center">
+    <div class="text-xs text-secondary">Zrobione</div>
+    <div class="text-2xl font-black text-success">{{ done }}</div>
+  </div>
 </div>

@@ -1,6 +1,35 @@
-<div class="text-center text-secondary py-8 text-sm" id="reminder-list-content">
-  <span class="inline-flex items-center gap-2">
-    <span class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin"></span>
-    Ładowanie...
-  </span>
+<div id="reminder-list-content" class="space-y-2">
+  {% if reminders %}
+    {% for r in reminders %}
+    <div class="flex items-center gap-3 p-3 rounded-xl bg-surface border border-border-custom hover:border-accent/30 transition-colors group">
+      <form method="post" action="/api/reminders/{{ r.id }}/toggle" class="inline">
+        <button type="submit" class="w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors
+          {{ 'bg-accent border-accent' if r.done else 'border-border-custom hover:border-accent' }}">
+          {% if r.done %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          {% endif %}
+        </button>
+      </form>
+      <div class="flex-1 min-w-0">
+        <span class="text-sm {{ 'line-through text-secondary' if r.done else 'text-primary' }}">{{ r.text }}</span>
+        <div class="flex items-center gap-2 text-[10px] text-secondary/60 mt-0.5">
+          {% if r.priority > 0 %}
+          <span>{{ '🔴' if r.priority == 2 else '🟡' }}</span>
+          {% endif %}
+          {% if r.due_date %}
+          <span>📅 {{ r.due_date.strftime('%Y-%m-%d') }}</span>
+          {% endif %}
+        </div>
+      </div>
+      <form method="post" action="/api/reminders/{{ r.id }}/delete" class="inline opacity-0 group-hover:opacity-100">
+        <button type="submit" class="text-secondary hover:text-danger transition-all text-xs px-2 py-1">✕</button>
+      </form>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="text-center py-8">
+    <div class="text-3xl mb-2">📋</div>
+    <div class="text-sm text-secondary">Brak aktywnych przypomnień 🎉</div>
+  </div>
+  {% endif %}
 </div>

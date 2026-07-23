@@ -162,3 +162,75 @@ async def update_agent_memory(
         "size": len(body.content),
         "status": "saved",
     }
+
+
+@router.get("/files")
+async def list_all_hermes_files(
+    user: User = Depends(get_current_user),
+):
+    """List ALL files and directories in ~/.hermes/ (recursive, flat).
+    Skips .env (secrets) and binary/large files.
+    Returns: {files: [{path, name, size, is_dir}], total: N}"""
+    items = []
+    skip_names = {".env", "state.db", "auth.lock", "chromium-profile",
+                   ".cache", "audio_cache", "cache", "backups",
+                   "logs", "sessions", "bin", "node_modules", ".git"}
+
+    for f in sorted(HERMES_DIR.iterdir()):
+        if f.name.startswith(".") or f.name in skip_names:
+            continue
+        if f.is_dir():
+            # List dir + first-level contents (no deep recursion)
+            subitems = []
+            for sf in sorted(f.iterdir()):
+                if sf.name.startswith("."):
+                    continue
+                try:
+                    subitems.append({
+                        "path": str(sf.relative_to(HERMES_DIR)),
+                        "name": sf.name,
+                        "is_dir": sf.is_dir(),
+                        "size": sf.stat().st_size if sf.is_file() else 0,
+                    })
+                except OSError:
+                    pass
+            items.append({
+                "path": f.name,
+                "name": f.name,
+                "is_dir": True,
+                "size": 0,
+                "children": subitems,
+                "child_count": len(subitems),
+            })
+        else:
+            try:
+                sz = f.stat().st_size
+                if sz > 100000:
+                    continue
+                items.append({"path": f.name, "name": f.name, "is_dir": False, "size": sz})
+            except OSError:
+                pass
+
+    return {"files": items, "total": len(items)}
+
+
+@router.get("/files/{path:path}")
+async def read_hermes_file(
+    path: str,
+    user: User = Depends(get_current_user),
+):
+    """Read any text file from ~/.hermes/ (excluding .env).
+    Returns: {path, name, content, size}"""
+    safe = pathlib.Path(path)
+    if safe.name == ".env":
+        raise HTTPException(status_code=403, detail=".env contains secrets — not readable via API")
+    target = (HERMES_DIR / path).resolve()
+    if not str(target).startswith(str(HERMES_DIR.resolve()) + "/"):
+        raise HTTPException(status_code=403, detail="Path traversal")
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        content = target.read_text(encoding="utf-8", errors="replace")
+        return {"path": path, "name": target.name, "content": content, "size": len(content)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cannot read file: {e}")

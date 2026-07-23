@@ -1,0 +1,20 @@
+<div id="cloud-files-list" class="space-y-1">
+  {% if entries %}
+    {% for e in entries %}
+    <div class="flex items-center gap-2 py-1.5 border-b border-border-custom/50 last:border-0">
+      <span class="shrink-0 text-base">
+        {% if e.is_dir %}📁{% elif e.name.endswith('.md') %}📝{% elif e.name.endswith('.py') %}🐍{% else %}📄{% endif %}
+      </span>
+      <span class="text-sm truncate flex-1">{{ e.name }}</span>
+      <span class="text-[10px] text-secondary/60 shrink-0">
+        {% if e.is_dir %}folder{% else %}{{ (e.size / 1024)|round(1) }} KB{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="text-center py-6">
+    <div class="text-3xl mb-2">☁️</div>
+    <div class="text-sm text-secondary">Cloudilla pusta — dodaj pliki do ~/cloudilla/</div>
+  </div>
+  {% endif %}
+</div>

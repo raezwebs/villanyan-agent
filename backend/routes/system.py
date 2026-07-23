@@ -1,6 +1,7 @@
 """Villanyan-Agent 3.0 — System routes (metrics, service control)."""
 
 import asyncio
+import json
 import os
 import subprocess
 import pathlib
@@ -321,7 +322,108 @@ async def partial_obsidian_status(request: Request):
     )
 
 
-# ── Cron table partial ─────────────────────────────────────────────────
+# ── Cloud files partial ────────────────────────────────────────────────
+
+
+@_partial_router.get("/cloud-files")
+async def partial_cloud_files(request: Request):
+    """HTMX partial: list cloudilla files — server-rendered."""
+    cloud_root = pathlib.Path(os.path.expanduser("~/cloudilla"))
+    entries = []
+    if cloud_root.exists():
+        for item in sorted(cloud_root.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+            st = item.stat()
+            entries.append({
+                "name": item.name,
+                "is_dir": item.is_dir(),
+                "size": st.st_size,
+                "modified": int(st.st_mtime),
+            })
+    return _render_template(request, "partials/cloud_files.html", entries=entries)
+
+
+# ── GitHub projects partial ────────────────────────────────────────────
+
+
+@_partial_router.get("/github-projects")
+async def partial_github_projects(request: Request):
+    """HTMX partial: list GitHub repos — server-rendered."""
+    repos = []
+    error = None
+    try:
+        result = subprocess.run(
+            ["gh", "repo", "list", "raezwebs", "--json", "name,description,pushedAt", "--limit", "15"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode == 0:
+            repos = json.loads(result.stdout) if result.stdout.strip() else []
+        else:
+            error = result.stderr.strip()
+    except FileNotFoundError:
+        error = "gh CLI not installed"
+    except json.JSONDecodeError:
+        error = "Failed to parse gh output"
+    except subprocess.TimeoutExpired:
+        error = "gh timed out"
+    except Exception as e:
+        error = str(e)
+    return _render_template(request, "partials/github_projects.html", repos=repos, error=error)
+
+
+# ── System summary partial ─────────────────────────────────────────────
+
+
+@_partial_router.get("/system-summary")
+async def partial_system_summary(request: Request):
+    """HTMX partial: system info summary — server-rendered."""
+    import psutil
+    boot_time = psutil.boot_time()
+    uptime_seconds = datetime.now(UTC).timestamp() - boot_time
+    days = int(uptime_seconds // 86400)
+    hours = int((uptime_seconds % 86400) // 3600)
+    uptime_str = f"{days}d {hours}h" if days else f"{hours}h"
+    temp = _get_vcgencmd_temp() or "—"
+    temp_display = f"{temp}°C" if isinstance(temp, float) else temp
+
+    # Obsidian
+    obsidian_path = pathlib.Path(os.path.expanduser("~/obsidian-vault"))
+    obsidian_ok = obsidian_path.exists()
+
+    return _render_template(request, "partials/system_summary.html",
+        uptime=uptime_str,
+        temp=temp_display,
+        obsidian_ok=obsidian_ok,
+    )
+
+
+# ── Dashboard welcome partial ──────────────────────────────────────────
+
+
+@_partial_router.get("/dashboard-welcome")
+async def partial_dashboard_welcome(request: Request):
+    """HTMX partial: welcome + reminder counts — server-rendered."""
+    from sqlalchemy import select, func
+    from backend.core.models import Reminder
+    from backend.core.db import async_session_factory
+
+    pending = 0
+    done = 0
+    try:
+        async with async_session_factory() as session:
+            total = await session.execute(select(func.count(Reminder.id)))
+            total_cnt = total.scalar() or 0
+            done_r = await session.execute(select(func.count(Reminder.id)).where(Reminder.done == True))
+            done_cnt = done_r.scalar() or 0
+            pending = total_cnt - done_cnt
+            done = done_cnt
+    except Exception:
+        pass
+
+    return _render_template(request, "partials/dashboard_welcome.html",
+        pending=pending,
+        done=done,
+        total=pending + done,
+    )
 
 
 @_partial_router.get("/cron-table")

@@ -1,0 +1,10 @@
+<div id="dashboard-welcome">
+  <h1 class="text-2xl font-bold text-primary mb-1">Witaj, Szajbat!</h1>
+  <div class="flex items-center gap-4 text-sm text-secondary">
+    <span>📌 <span class="font-medium text-accent">{{ pending }}</span> aktywnych przypomnień</span>
+    <span>✅ <span class="font-medium text-success">{{ done }}</span> zrealizowanych</span>
+  </div>
+  {% if total == 0 %}
+  <div class="mt-2 text-sm text-secondary">Brak aktywnych przypomnień 🎉</div>
+  {% endif %}
+</div>

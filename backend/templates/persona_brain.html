@@ -8,6 +8,10 @@
       <p class="text-sm text-secondary">Pliki determinujące osobowość i wiedzę agenta Hermes</p>
     </div>
     <div class="flex gap-2">
+      <button @click="showNewFileInput = !showNewFileInput" class="bg-surface border border-border-custom px-4 py-2 rounded-lg text-sm font-bold hover:bg-surface-hover transition-colors flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span x-text="showNewFileInput ? 'Anuluj' : 'Nowy plik'"></span>
+      </button>
       <button @click="refreshFiles()" class="bg-surface border border-border-custom px-4 py-2 rounded-lg text-sm font-bold hover:bg-surface-hover transition-colors flex items-center gap-2" :disabled="loading">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="loading ? 'animate-spin' : ''"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         Odśwież
@@ -19,6 +23,17 @@
   <div x-show="toast.visible" x-transition x-text="toast.message" class="fixed top-4 right-4 z-[100] px-4 py-2 rounded-lg text-sm font-bold shadow-lg"
        :class="toast.type === 'success' ? 'bg-success/20 text-success border border-success/30' : 'bg-danger/20 text-danger border border-danger/30'"
        x-effect="if(toast.visible) setTimeout(() => toast.visible = false, 3000)"></div>
+
+  <!-- Nowy plik -->
+  <div x-show="showNewFileInput" x-transition class="bg-surface border border-accent rounded-xl p-4">
+    <div class="flex items-center gap-3">
+      <input type="text" x-model="newFileName" @keydown.enter="createNewFile()" placeholder="Nazwa nowego pliku (bez .md)" class="flex-1 bg-page border border-border-custom rounded-lg p-2 text-sm focus:border-accent outline-none" />
+      <button @click="createNewFile()" :disabled="!newFileName.trim()"
+              class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors disabled:opacity-50">
+        + Utwórz
+      </button>
+    </div>
+  </div>
 
   <!-- Agent info card -->
   <div class="bg-surface border border-border-custom rounded-xl p-5" x-show="agentInfo.name">
@@ -46,14 +61,20 @@
                 class="px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 shrink-0"
                 :class="selectedFile === file.name ? 'border-accent text-accent bg-accent/5' : 'border-transparent text-secondary hover:text-primary hover:bg-surface-hover'">
           <span x-text="file.name"></span>
-          <span class="text-[10px] text-secondary/60 ml-1" x-text="'(' + (file.size || 0) + 'B)'"></span>
+          <span class="text-[10px] text-secondary/60 ml-1" x-text="'(' + formatSize(file.size) + ')'"></span>
         </button>
       </template>
     </div>
 
     <!-- Pusty stan -->
-    <div x-show="!memoryFiles.length && !loading" class="text-center py-12 text-secondary text-sm">
+    <div x-show="!memoryFiles.length && !loading && !loadError" class="text-center py-12 text-secondary text-sm">
       Brak plików pamięci agenta
+    </div>
+
+    <!-- Błąd -->
+    <div x-show="loadError" class="text-center py-8 text-danger text-sm">
+      <span x-text="loadError"></span>
+      <button @click="refreshFiles()" class="block mx-auto mt-3 text-xs bg-accent/10 text-accent px-3 py-1.5 rounded-lg hover:bg-accent/20">Spróbuj ponownie</button>
     </div>
 
     <!-- Loading -->
@@ -65,16 +86,16 @@
     </div>
 
     <!-- Edytor aktywnej zakładki -->
-    <div x-show="selectedFile" class="p-0">
+    <div x-show="selectedFile" x-transition>
       <div class="relative">
         <textarea x-model="editContent"
                   class="w-full bg-page text-sm font-mono text-primary resize-none outline-none p-5"
-                  style="min-height: 60vh"
+                  style="min-height: 50vh"
                   placeholder="Zawartość pliku..."
                   x-ref="editor"></textarea>
         <div class="absolute bottom-3 right-3 text-[10px] text-secondary/60" x-text="(editContent || '').length + ' znaków'"></div>
       </div>
-      <div class="flex items-center gap-2 px-5 py-3 border-t border-border-custom bg-surface">
+      <div class="flex items-center gap-2 px-5 py-3 border-t border-border-custom bg-surface flex-wrap">
         <button @click="saveFile()"
                 class="bg-accent text-page px-5 py-2 rounded-lg text-sm font-bold hover:bg-accent/90 transition-colors flex items-center gap-2 disabled:opacity-50"
                 :disabled="saving">
@@ -88,7 +109,7 @@
         </button>
 
         <!-- Przełącznik Edycja/Podgląd -->
-        <div class="ml-auto flex items-center gap-1 bg-page rounded-lg p-0.5 border border-border-custom">
+        <div class="lg:ml-auto flex items-center gap-1 bg-page rounded-lg p-0.5 border border-border-custom">
           <button @click="preview = false" class="px-3 py-1 text-xs rounded-md transition-colors font-medium"
                   :class="!preview ? 'bg-accent text-page' : 'text-secondary hover:text-primary'">Edycja</button>
           <button @click="preview = true" class="px-3 py-1 text-xs rounded-md transition-colors font-medium"
@@ -96,9 +117,9 @@
         </div>
       </div>
 
-      <!-- Podgląd Markdown (prosty) -->
-      <div x-show="preview" class="p-5 border-t border-border-custom prose prose-invert max-w-none text-sm">
-        <div class="space-y-2" x-html="renderMarkdown(editContent)"></div>
+      <!-- Podgląd Markdown -->
+      <div x-show="preview" class="p-5 border-t border-border-custom prose prose-invert max-w-none text-sm bg-page">
+        <div x-html="renderMarkdown(editContent)"></div>
       </div>
     </div>
   </div>
@@ -156,7 +177,10 @@ function personaBrain() {
     editContent: '',
     saving: false,
     loading: true,
+    loadError: null,
     preview: false,
+    showNewFileInput: false,
+    newFileName: '',
     toast: { visible: false, message: '', type: 'success' },
 
     init() {
@@ -167,8 +191,17 @@ function personaBrain() {
       this.toast = { visible: true, message: msg, type: type || 'success' };
     },
 
+    formatSize(bytes) {
+      if (!bytes) return '0B';
+      const units = ['B', 'KB', 'MB'];
+      let i = 0, size = bytes;
+      while (size >= 1024 && i < units.length - 1) { size /= 1024; i++; }
+      return size.toFixed(size >= 10 ? 0 : 1) + units[i];
+    },
+
     async refreshFiles() {
       this.loading = true;
+      this.loadError = null;
       const token = localStorage.getItem('villanyan_token');
       try {
         const [infoRes, filesRes] = await Promise.all([
@@ -179,9 +212,31 @@ function personaBrain() {
         if (filesRes.ok) {
           const d = await filesRes.json();
           this.memoryFiles = d.files || [];
+        } else {
+          this.loadError = 'Nie udało się wczytać plików (HTTP ' + filesRes.status + ')';
         }
-      } catch(e) { console.error('Error loading persona:', e); }
+      } catch(e) {
+        this.loadError = 'Błąd sieci: ' + e.message;
+      }
       this.loading = false;
+    },
+
+    async createNewFile() {
+      const name = this.newFileName.trim();
+      if (!name) return;
+      // Check if already exists
+      if (this.memoryFiles.some(f => f.name === name)) {
+        this.showToast('✗ Plik ' + name + ' już istnieje', 'error');
+        return;
+      }
+      // Select as new file with template content
+      this.selectedFile = name;
+      this.editContent = '# ' + name + '\n\nPamięć agenta — ' + name.replace(/-/g, ' ') + '\n';
+      this.preview = false;
+      this.showNewFileInput = false;
+      this.newFileName = '';
+      // Save immediately
+      await this.saveFile();
     },
 
     async selectFile(name) {
@@ -198,12 +253,13 @@ function personaBrain() {
           const d = await res.json();
           this.editContent = d.content || '';
         } else if (res.status === 404) {
-          this.editContent = '# ' + name + '\n\nNowy plik pamięci — zostanie utworzony po zapisaniu.\n';
+          this.editContent = '# ' + name + '\n\nNowy plik pamięci.\n';
         } else {
-          this.editContent = '# Błąd ładowania\n';
+          const err = await res.json().catch(() => ({}));
+          this.editContent = '# Błąd ładowania\n\n' + (err.detail || '');
         }
       } catch {
-        this.editContent = '# Błąd sieci\n';
+        this.editContent = '# Błąd sieci\n\nNie można połączyć się z serwerem.';
       }
     },
 
@@ -246,8 +302,8 @@ function personaBrain() {
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/^- (.+)$/gm, '<li class="ml-4 text-secondary">• $1</li>')
-        .replace(/\n\n/g, '</p><p class="mb-2">')
-        .replace(/^`(.+)`$/gm, '<code class="bg-page px-1 py-0.5 rounded text-xs font-mono">$1</code>');
+        .replace(/`([^`]+)`/g, '<code class="bg-page px-1 py-0.5 rounded text-xs font-mono text-accent">$1</code>')
+        .replace(/\n\n/g, '</p><p class="mb-2">');
       return '<p class="mb-2">' + html + '</p>';
     }
   };

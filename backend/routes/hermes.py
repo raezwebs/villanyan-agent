@@ -182,6 +182,34 @@ async def get_agent_info(
     }
 
 
+@router.get("/memory")
+async def list_agent_memory_files(
+    user: User = Depends(get_current_user),
+):
+    """List available memory files in ~/.hermes/ and ~/.hermes/memories/."""
+    files = []
+
+    # Scan ~/.hermes/*.md (memory/AGENTS.md, MEMORY.md, SOUL.md, etc.)
+    for f in sorted(HERMES_DIR.glob("*.md")):
+        files.append({
+            "name": f.stem,
+            "path": str(f.name),
+            "size": f.stat().st_size,
+        })
+
+    # Also scan ~/.hermes/memories/*.md
+    memories_dir = HERMES_DIR / "memories"
+    if memories_dir.exists():
+        for f in sorted(memories_dir.glob("*.md")):
+            files.append({
+                "name": f.stem,
+                "path": str(f.relative_to(HERMES_DIR)),
+                "size": f.stat().st_size,
+            })
+
+    return {"files": files, "total": len(files)}
+
+
 @router.get("/agent-memory/{name}")
 async def get_agent_memory(
     name: str,

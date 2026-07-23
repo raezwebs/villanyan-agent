@@ -49,11 +49,11 @@
 
   <!-- Filtry -->
   <div class="flex gap-2">
-    <button @click="filter='all'; loadStats()" class="text-xs px-3 py-1.5 rounded-lg transition-colors"
+    <button @click="filter='all'" class="text-xs px-3 py-1.5 rounded-lg transition-colors"
             :class="filter === 'all' ? 'bg-accent text-page' : 'bg-surface border border-border-custom text-secondary hover:text-primary'">Wszystkie</button>
-    <button @click="filter='active'; loadStats()" class="text-xs px-3 py-1.5 rounded-lg transition-colors"
+    <button @click="filter='active'" class="text-xs px-3 py-1.5 rounded-lg transition-colors"
             :class="filter === 'active' ? 'bg-accent text-page' : 'bg-surface border border-border-custom text-secondary hover:text-primary'">Aktywne</button>
-    <button @click="filter='done'; loadStats()" class="text-xs px-3 py-1.5 rounded-lg transition-colors"
+    <button @click="filter='done'" class="text-xs px-3 py-1.5 rounded-lg transition-colors"
             :class="filter === 'done' ? 'bg-accent text-page' : 'bg-surface border border-border-custom text-secondary hover:text-primary'">Zrealizowane</button>
   </div>
 
@@ -75,7 +75,7 @@
 
   <!-- Lista przypomnień -->
   <div class="space-y-2" id="reminder-items">
-    <template x-for="r in reminders" :key="r.id">
+    <template x-for="r in filteredReminders" :key="r.id">
       <div class="flex items-center gap-3 p-3 rounded-xl bg-surface border border-border-custom hover:border-accent/30 transition-colors group">
         <button @click="toggleReminder(r)" class="w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors"
                 :class="r.done ? 'bg-accent border-accent' : 'border-border-custom hover:border-accent'">
@@ -91,7 +91,7 @@
         <button @click="deleteReminder(r.id)" class="opacity-0 group-hover:opacity-100 text-secondary hover:text-danger transition-all text-xs px-2 py-1">✕</button>
       </div>
     </template>
-    <div x-show="!loading && reminders.length === 0" class="text-center py-8">
+    <div x-show="!loading && filteredReminders.length === 0" class="text-center py-8">
       <div class="text-3xl mb-2" x-text="filter === 'done' ? '✅' : '📋'"></div>
       <div class="text-sm text-secondary" x-text="filter === 'done' ? 'Brak zrealizowanych przypomnień' : 'Brak aktywnych przypomnień 🎉'"></div>
     </div>
@@ -114,11 +114,22 @@ function remindersApp() {
     newDue: '',
     saveMsg: '',
     saving: false,
-    reminders: [],
-    totalReminders: 0,
-    pendingReminders: 0,
-    doneReminders: 0,
+    allReminders: [],
+    allTotal: 0,
     loading: true,
+
+    get reminders() { return this.allReminders; },
+    get filteredReminders() {
+      if (this.filter === 'all') return this.allReminders;
+      const done = this.filter === 'done';
+      return this.allReminders.filter(r => r.done === done);
+    },
+    get totalReminders() {
+      if (this.filter === 'all') return this.allTotal || this.allReminders.length;
+      return this.filteredReminders.length;
+    },
+    get pendingReminders() { return this.allReminders.filter(r => !r.done).length; },
+    get doneReminders() { return this.allReminders.filter(r => r.done).length; },
 
     init() {
       this.loadStats();
@@ -128,16 +139,13 @@ function remindersApp() {
       this.loading = true;
       const token = localStorage.getItem('villanyan_token');
       try {
-        const params = this.filter === 'all' ? '' : '?done=' + (this.filter === 'done' ? 'true' : 'false');
-        const res = await fetch('/api/reminders' + params, {
+        const r = await fetch('/api/reminders', {
           headers: { 'Authorization': 'Bearer ' + token }
         });
-        if (res.ok) {
-          const d = await res.json();
-          this.reminders = d.items || [];
-          this.totalReminders = this.reminders.length;
-          this.pendingReminders = this.reminders.filter(r => !r.done).length;
-          this.doneReminders = this.reminders.filter(r => r.done).length;
+        if (r.ok) {
+          const d = await r.json();
+          this.allReminders = d.items || [];
+          this.allTotal = d.total || this.allReminders.length;
         }
       } catch {}
       this.loading = false;

@@ -25,6 +25,7 @@
     <div class="px-4 py-2 border-b border-border-custom bg-surface/30 flex items-center gap-3 text-xs">
       <span class="font-bold">⬡ Villanyan-Chat</span>
       <span id="llm-status" class="text-secondary">Sprawdzanie połączenia...</span>
+      <span id="active-session-label" class="text-secondary/60 ml-auto hidden md:inline truncate max-w-[200px]"></span>
     </div>
 
     {# Banner gdy brak LLM #}
@@ -76,10 +77,13 @@ document.addEventListener('DOMContentLoaded', async function checkActiveLLM() {
     const d = await r.json();
     const icons = { deepseek: '🧠', ollama: '⬡', gemini: '✦', openai: '◎' };
     let anyOnline = false;
-    for (const [key, val] of Object.entries(d)) {
-      if (val.status === 'online' || val.status === 'configured' || val.status === 'online') {
+    // Kolejność priorytetu: deepseek > ollama > gemini > openai
+    for (const key of ['deepseek', 'ollama', 'gemini', 'openai']) {
+      const val = d[key];
+      if (!val) continue;
+      if (val.status === 'online') {
         const icon = icons[key] || '⬡';
-        const model = val.model || (val.models && val.models[0]) || key;
+        const model = val.model || (val.models && val.models[0] ? val.models[0].replace(':latest','') : key);
         statusEl.innerHTML = '<span class="text-success">' + icon + ' ' +
           key.charAt(0).toUpperCase() + key.slice(1) + ' online</span> · ' + model;
         anyOnline = true;
@@ -101,6 +105,7 @@ function chatApp() {
     sending: false,
     pollInterval: null,
     ollamaOffline: false,
+    sessions: [],
 
     autoResize(el) {
       el.style.height = 'auto';
@@ -133,7 +138,7 @@ function chatApp() {
             body: JSON.stringify({ content: text }),
           });
           this.removeThinking();
-          if (!res.ok) { this.addError('Błąd: ' + res.status); return; }
+          if (!res.ok) { this.addError('Błąd: ' + res.status); this.sending = false; return; }
           const data = await res.json();
           this.addMessage('assistant', data.content, null, data.model_used);
 
@@ -172,7 +177,7 @@ function chatApp() {
       const isUser = role === 'user';
       const ts = timestamp || new Date().toLocaleTimeString('pl-PL', {hour:'2-digit',minute:'2-digit'});
       const modelTag = (!isUser && modelUsed)
-        ? '<div class="text-[10px] text-secondary/40 mt-0.5">' + modelUsed + '</div>'
+        ? '<div class="text-[10px] text-secondary/40 mt-0.5">' + this.escapeHtml(modelUsed) + '</div>'
         : '';
       el.innerHTML += '<div class="flex ' + (isUser ? 'justify-end' : 'justify-start') + '">' +
         '<div class="max-w-[80%] ' + (isUser
@@ -218,6 +223,8 @@ function chatApp() {
         const data = await res.json();
         this.activeSession = data.id;
         document.getElementById('chat-messages').innerHTML = '';
+        const label = document.getElementById('active-session-label');
+        if (label) label.textContent = 'Sesja #' + data.id;
         htmx.trigger('#session-list', 'load');
         return data.id;
       } catch { return null; }
@@ -235,9 +242,15 @@ window.selectSession = function(sid) {
   const app = document.querySelector('[x-data="chatApp()"]')?.__x?.$data;
   if (app) {
     app.activeSession = sid;
+    // Highlight active session in sidebar
     document.querySelectorAll('#session-items > div').forEach(d => d.classList.remove('nav-item-active'));
     const target = document.querySelector('[data-sid="' + sid + '"]');
     if (target) target.classList.add('nav-item-active');
+
+    // Update header label
+    const label = document.getElementById('active-session-label');
+    const targetTitle = target?.textContent?.trim() || 'Sesja #' + sid;
+    if (label) label.textContent = targetTitle;
 
     fetch('/api/sessions/' + sid + '/messages', {
       headers: { 'Authorization': 'Bearer ' + localStorage.getItem('villanyan_token') }
@@ -247,9 +260,13 @@ window.selectSession = function(sid) {
       (data.messages || []).forEach(m => {
         const ts = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('pl-PL', {hour:'2-digit',minute:'2-digit'}) : '';
         const isUser = m.role === 'user';
+        const modelTag = (!isUser && m.model_used)
+          ? '<div class="text-[10px] text-secondary/40 mt-0.5">' + app.escapeHtml(m.model_used) + '</div>'
+          : '';
         el.innerHTML += '<div class="flex ' + (isUser ? 'justify-end' : 'justify-start') + '">' +
           '<div class="max-w-[80%] ' + (isUser ? 'bg-accent/10 border border-accent/20 rounded-tl-2xl rounded-bl-2xl rounded-tr-sm' : 'bg-surface border border-border-custom rounded-tr-2xl rounded-br-2xl rounded-tl-sm') + ' px-4 py-2.5">' +
           '<div class="text-sm leading-relaxed whitespace-pre-wrap break-words">' + app.escapeHtml(m.content || '') + '</div>' +
+          modelTag +
           '<div class="text-[10px] text-secondary/60 mt-1 text-right">' + ts + '</div></div></div>';
       });
       el.scrollTop = el.scrollHeight;

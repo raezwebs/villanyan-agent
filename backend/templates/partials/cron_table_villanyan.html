@@ -1,0 +1,43 @@
+<div id="cron-table-villanyan-inner">
+  {% if jobs %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-secondary text-xs uppercase tracking-wider border-b border-border-custom">
+          <th class="text-left py-3 px-4">Nazwa</th>
+          <th class="text-left py-3 px-4 hidden md:table-cell">Harmonogram</th>
+          <th class="text-left py-3 px-4">Status</th>
+          <th class="text-left py-3 px-4 hidden lg:table-cell">Komenda</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for j in jobs %}
+        <tr class="border-b border-border-custom last:border-0 hover:bg-surface-hover/50">
+          <td class="py-3 px-4">
+            <div class="font-bold text-sm">{{ j.name }}</div>
+          </td>
+          <td class="py-3 px-4 hidden md:table-cell">
+            <code class="text-xs font-mono bg-page px-2 py-1 rounded">{{ j.schedule.display }}</code>
+          </td>
+          <td class="py-3 px-4">
+            <span class="inline-flex items-center gap-1.5 text-xs">
+              <span class="w-2 h-2 rounded-full {{ 'bg-success' if j.active else 'bg-secondary' }}"></span>
+              {{ 'Aktywny' if j.active else 'Wyłączony' }}
+            </span>
+          </td>
+          <td class="py-3 px-4 hidden lg:table-cell">
+            <span class="text-xs text-secondary/60 font-mono truncate max-w-[200px]">{{ j.command }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="text-xs text-secondary/60 mt-2">{{ jobs|length }} zadanie(-ń) w bazie villanyan</div>
+  {% else %}
+  <div class="bg-surface border border-border-custom rounded-xl p-6 text-center">
+    <div class="text-2xl mb-2">⏰</div>
+    <div class="text-sm text-secondary">Brak zadań w bazie villanyan-agent</div>
+  </div>
+  {% endif %}
+</div>

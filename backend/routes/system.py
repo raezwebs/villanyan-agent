@@ -451,6 +451,33 @@ async def partial_cron_table(request: Request):
     return _render_template(request, "partials/cron_table.html", jobs=jobs)
 
 
+@_partial_router.get("/cron-table-villanyan")
+async def partial_cron_table_villanyan(request: Request):
+    """HTMX partial: cron jobs from villanyan-agent DB."""
+    from backend.core.db import async_session_factory
+    from backend.core.models import CronJob
+    from sqlalchemy import select
+
+    db_jobs = []
+    try:
+        async with async_session_factory() as session:
+            result = await session.execute(select(CronJob).order_by(CronJob.created_at.desc()))
+            for j in result.scalars().all():
+                db_jobs.append({
+                    "name": j.name,
+                    "id": j.id,
+                    "schedule": {"display": j.schedule},
+                    "command": j.command,
+                    "active": j.active,
+                    "last_run_ts": j.last_run_ts,
+                    "last_exit_code": j.last_exit_code,
+                })
+    except Exception:
+        pass
+
+    return _render_template(request, "partials/cron_table_villanyan.html", jobs=db_jobs)
+
+
 # ── Reminder list partial (serwer-render) ──────────────────────────────
 
 

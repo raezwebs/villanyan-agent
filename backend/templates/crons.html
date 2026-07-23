@@ -1,45 +1,30 @@
 {% extends "base.html" %}
 {% block title %}Automatyzacje — Villanyan-Agent{% endblock %}
 {% block content %}
-<div class="space-y-6">
-  <div class="flex justify-between items-center">
-    <h2 class="text-2xl font-bold">Automatyzacje i Crony</h2>
-    <button onclick="document.getElementById('cron-form').classList.toggle('hidden')" class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors flex items-center gap-2">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      + Dodaj automatyzację
-    </button>
-  </div>
+<div class="space-y-8">
 
-  {# Formularz dodawania #}
-  <div id="cron-form" class="bg-surface border border-accent rounded-xl p-5 hidden">
-    <h3 class="font-bold mb-4">Nowa automatyzacja</h3>
-    <form method="post" action="/api/cron/jobs" hx-post="/api/cron/jobs" hx-target="#cron-table" hx-swap="outerHTML" hx-on::after-request="if(event.detail.successful){this.reset();document.getElementById('cron-form').classList.add('hidden')}">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div>
-          <label class="block text-xs text-secondary mb-1">Nazwa zadania</label>
-          <input type="text" name="name" class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm focus:border-accent outline-none" placeholder="Moja automatyzacja" required />
-        </div>
-        <div>
-          <label class="block text-xs text-secondary mb-1">Wyrażenie Cron</label>
-          <input type="text" name="schedule" class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm font-mono focus:border-accent outline-none" placeholder="0 9 * * *" required />
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-xs text-secondary mb-1">Polecenie</label>
-          <input type="text" name="command" class="w-full bg-page border border-border-custom rounded-lg p-2 text-sm font-mono focus:border-accent outline-none" placeholder="/home/vv-rp/scripts/backup.sh" required />
-        </div>
+  {# Hermes Crony #}
+  <div>
+    <h2 class="text-2xl font-bold mb-2">🤖 Hermes Automatyzacje</h2>
+    <p class="text-sm text-secondary mb-4">Crony zdefiniowane w Hermes Agent</p>
+    <div id="cron-table" hx-get="/partials/cron-table" hx-trigger="load, every 30s" hx-swap="innerHTML">
+      <div class="space-y-2">
+        <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
+        <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
       </div>
-      <button type="submit" class="bg-accent text-page px-4 py-2 rounded-lg font-bold text-sm hover:bg-accent/90 transition-colors">
-        Zapisz
-      </button>
-    </form>
+    </div>
   </div>
 
-  {# Tabela cronów — HTMX server-render #}
-  <div id="cron-table" hx-get="/partials/cron-table" hx-trigger="load, every 30s" hx-swap="innerHTML">
-    <div class="space-y-2">
-      <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
-      <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
-      <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
+  {# Villanyan Crony #}
+  <div>
+    <h2 class="text-2xl font-bold mb-2">⬡ Villanyan Automatyzacje</h2>
+    <p class="text-sm text-secondary mb-4">Zadania dodane przez dashboard villanyan</p>
+
+    <div id="cron-table-villanyan" hx-get="/partials/cron-table-villanyan" hx-trigger="load, every 30s" hx-swap="innerHTML">
+      <div class="space-y-2">
+        <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
+        <div class="h-12 bg-surface-hover rounded-lg animate-pulse"></div>
+      </div>
     </div>
   </div>
 </div>
